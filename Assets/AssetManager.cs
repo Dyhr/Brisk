@@ -3,7 +3,7 @@ using System.Collections;
 using System.IO;
 using UnityEngine;
 
-namespace Network.Assets
+namespace Brisk.Assets
 {
     internal class AssetManager
     {

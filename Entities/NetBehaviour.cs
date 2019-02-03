@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Network.Entities
+namespace Brisk.Entities
 {
     [RequireComponent(typeof(NetEntity))]
     public abstract class NetBehaviour : MonoBehaviour

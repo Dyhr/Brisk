@@ -1,4 +1,4 @@
-namespace Network
+namespace Brisk
 {
     public enum UpdateType
     {

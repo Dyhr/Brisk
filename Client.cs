@@ -1,24 +1,19 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections;
+using Brisk.Config;
+using Brisk.Entities;
 using Lidgren.Network;
-using Network.Assets;
-using Network.Config;
-using Network.Entities;
 using UnityEngine;
 
-namespace Network
+namespace Brisk
 {
     public class Client : MonoBehaviour
     {
         [SerializeField] private ServerConfig config = null;
         [SerializeField] private string host = "localhost";
         [SerializeField] private float connectTimeout = 10f;
-        [SerializeField] private float sendRate = 10;
+        [SerializeField] private float sendRate = 30;
 
         private readonly Peer<NetClient> client = new Peer<NetClient>();
-        private readonly List<NetEntity> entities = new List<NetEntity>();
 
         private bool isConnecting;
         private bool connected;
@@ -81,6 +76,7 @@ namespace Network
 
         private void ClientData(ref NetMessage msg)
         {
+            NetEntity entity;
             switch (msg.op)
             {
                 case NetOp.SystemInfo:
@@ -94,8 +90,7 @@ namespace Network
                 case NetOp.StringsData:
                     client.assetManager.StringGet(msg.msg.ReadInt32(), msg.msg.ReadString());
                     
-                    if (client.assetManager.Ready)
-                        msg.res.Write((byte)NetOp.Ready);
+                    if (client.assetManager.Ready) Ready();
                     break;
                 case NetOp.AssetsStart:
                     msg.res.Write((byte)NetOp.AssetsStart);
@@ -107,16 +102,26 @@ namespace Network
                     var length = msg.msg.ReadInt32();
                     var data = msg.msg.ReadBytes(length);
                     client.assetManager.DataGet(start, length, data);
-                    
-                    if (client.assetManager.Ready)
-                        msg.res.Write((byte)NetOp.Ready);
+
+                    if (client.assetManager.Ready) Ready();
                     break;
                 case NetOp.NewEntity:
                     var assetId = msg.msg.ReadInt32();
                     var entityId = msg.msg.ReadInt32();
+                    var mine = msg.msg.ReadBoolean();
 
-                    var entity = client.entityManager.CreateEntity(client.assetManager, assetId, entityId);
-                    entities.Add(entity);
+                    entity = client.entityManager.CreateEntity(client.assetManager, assetId, entityId);
+                    entity.Owner = mine;
+                    break;
+                case NetOp.EntityUpdate:
+                    var id = msg.msg.ReadInt32();
+                    var pos = new Vector3(msg.msg.ReadFloat(),msg.msg.ReadFloat(),msg.msg.ReadFloat());
+                    entity = client.entityManager[id];
+
+                    if (entity != null)
+                        entity.transform.position = pos;
+                    else
+                        Debug.LogWarning("Entity not found: "+id);
                     break;
                 default:
                     Debug.LogWarning("Unknown operation: "+msg.op);
@@ -124,14 +129,29 @@ namespace Network
             }
         }
 
-        public void Register(NetEntity entity)
+        private void Ready()
         {
-            entities.Add(entity);
+            var msg = client.NetPeer.CreateMessage();
+            msg.Write((byte)NetOp.Ready);
+            client.NetPeer.SendMessage(msg, NetDeliveryMethod.ReliableUnordered);
+            
+            StartCoroutine(SendUpdates());
         }
 
-        public void Deregister(NetEntity entity)
+        private IEnumerator SendUpdates()
         {
-            entities.Remove(entity);
+            while (connected)
+            {
+                yield return new WaitForSeconds(1/sendRate);
+                foreach (var entity in client.entityManager)
+                {
+                    if (!entity.Owner || !entity.Dirty) continue;
+
+                    var msg = client.NetPeer.CreateMessage();
+                    entity.Serialize(msg);
+                    client.NetPeer.SendMessage(msg, NetDeliveryMethod.UnreliableSequenced);
+                }
+            }
         }
     }
 }

@@ -1,6 +1,6 @@
 using Lidgren.Network;
 
-namespace Network
+namespace Brisk
 {
     public struct NetMessage
     {

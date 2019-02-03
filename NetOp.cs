@@ -1,6 +1,6 @@
 using System;
 
-namespace Network
+namespace Brisk
 {
     [Serializable]
     public enum NetOp : byte

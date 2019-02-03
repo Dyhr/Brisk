@@ -1,22 +1,18 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.IO;
-using System.Net;
-using System.Net.Sockets;
+﻿using System.Collections.Generic;
+using Brisk.Config;
 using Lidgren.Network;
-using Network.Config;
-using UnityEditor;
 using UnityEngine;
 
-namespace Network
+namespace Brisk
 {
     public class Server : MonoBehaviour
     {
         [SerializeField] private ServerConfig config = null;
 
         private readonly Peer<NetServer> server = new Peer<NetServer>();
-        private readonly List<NetConnection> clients = new List<NetConnection>();
+        private readonly Dictionary<NetConnection, ConnectionInfo> clients = new Dictionary<NetConnection, ConnectionInfo>();
+
+        private int nextUserId;
 
 
         private void Awake()
@@ -54,7 +50,7 @@ namespace Network
 
         private void ServerOnConnected(NetConnection connection)
         {
-            clients.Add(connection);
+            clients.Add(connection, new ConnectionInfo(++nextUserId));
 
             var msg = server.NetPeer.CreateMessage();
             msg.Write((byte) NetOp.SystemInfo);
@@ -123,7 +119,26 @@ namespace Network
 
                     break;
                 case NetOp.Ready:
+                    clients[msg.msg.SenderConnection].ready = true;
                     Debug.Log(msg.msg.SenderEndPoint + " is ready");
+
+                    foreach (var entity in server.entityManager)
+                    {
+                        var m = server.NetPeer.CreateMessage();
+                        m.Write((byte) NetOp.NewEntity);
+                        m.Write(entity.AssetId);
+                        m.Write(entity.Id);
+                        m.Write(false);
+                        msg.msg.SenderConnection.SendMessage(m, NetDeliveryMethod.ReliableUnordered, 0);
+                        
+                        m = server.NetPeer.CreateMessage();
+                        m.Write((byte) NetOp.EntityUpdate);
+                        m.Write(entity.Id);
+                        m.Write(transform.position.x);
+                        m.Write(transform.position.y);
+                        m.Write(transform.position.z);
+                        msg.msg.SenderConnection.SendMessage(m, NetDeliveryMethod.UnreliableSequenced, 0);
+                    }
 
                     var assetId = server.assetManager["PlayerController"];
                     var entityId = msg.msg.SenderEndPoint.Port;
@@ -133,6 +148,42 @@ namespace Network
                     msg.res.Write((byte) NetOp.NewEntity);
                     msg.res.Write(assetId);
                     msg.res.Write(entityId);
+                    msg.res.Write(true);
+
+                    foreach (var conn in clients)
+                    {
+                        if (conn.Key == msg.msg.SenderConnection) continue;
+                        if (!conn.Value.ready) continue;
+
+                        var m = server.NetPeer.CreateMessage();
+                        m.Write((byte) NetOp.NewEntity);
+                        m.Write(assetId);
+                        m.Write(entityId);
+                        m.Write(false);
+                        conn.Key.SendMessage(m, NetDeliveryMethod.ReliableUnordered, 0);
+                    }
+                    break;
+                case NetOp.EntityUpdate:
+                    var id = msg.msg.ReadInt32();
+                    var pos = new Vector3(msg.msg.ReadFloat(),msg.msg.ReadFloat(),msg.msg.ReadFloat());
+                    server.entityManager[id].transform.position = pos;
+                    
+                    foreach (var conn in clients)
+                    {
+                        if (conn.Key == msg.msg.SenderConnection) continue;
+                        if (!conn.Value.ready) continue;
+                        
+                        var m = server.NetPeer.CreateMessage();
+                        m.Write((byte) NetOp.EntityUpdate);
+                        m.Write(id);
+                        m.Write(pos.x);
+                        m.Write(pos.y);
+                        m.Write(pos.z);
+                        conn.Key.SendMessage(m, NetDeliveryMethod.UnreliableSequenced, 0);
+                    }
+                    break;
+                default:
+                    Debug.LogWarning("Unknown operation: "+msg.op);
                     break;
             }
         }

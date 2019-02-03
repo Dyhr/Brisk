@@ -1,12 +1,12 @@
 using System;
 using System.Net.Sockets;
+using Brisk.Assets;
+using Brisk.Config;
+using Brisk.Entities;
 using Lidgren.Network;
-using Network.Assets;
-using Network.Config;
-using Network.Entities;
 using UnityEngine;
 
-namespace Network
+namespace Brisk
 {
     internal sealed class Peer<T> where T : NetPeer
     {
