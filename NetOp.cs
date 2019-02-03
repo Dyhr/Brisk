@@ -13,7 +13,7 @@ namespace Network
         
         AssetsStart  = 0x10,
         AssetsData   = 0x11,
-        StringsStart = 0x10,
-        StringsData  = 0x11,
+        StringsStart = 0x12,
+        StringsData  = 0x13,
     }
 }

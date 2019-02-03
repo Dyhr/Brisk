@@ -7,8 +7,12 @@ namespace Network.Assets
 {
     internal class AssetManager
     {
-        public readonly StringDictionary strings = new StringDictionary();
-        
+        public bool Ready => assets != null && stringsLength == stringsProgress;
+        public int StringsLength => strings.Length;
+
+        private readonly StringDictionary strings = new StringDictionary();
+        private int stringsLength;
+        private int stringsProgress;
         private AssetBundle assets;
         private byte[] assetsData;
         private int assetsProgress;
@@ -30,6 +34,24 @@ namespace Network.Assets
                     return assetsData != null;
                 default:
                     return false;
+            }
+        }
+        
+        private byte[] BundleData(RuntimePlatform platform)
+        {
+            switch (platform)
+            {
+                case RuntimePlatform.OSXEditor:
+                case RuntimePlatform.OSXPlayer:
+                    return assetsData;
+                case RuntimePlatform.WindowsEditor:
+                case RuntimePlatform.WindowsPlayer:
+                    return assetsData;
+                case RuntimePlatform.LinuxEditor:
+                case RuntimePlatform.LinuxPlayer:
+                    return assetsData;
+                default:
+                    return null;
             }
         }
         
@@ -56,10 +78,19 @@ namespace Network.Assets
         
         #region Transmission
 
+        public IEnumerator SendStrings(float interval, Action<int, string> onData)
+        {
+            for (var i = 0; i < strings.Length; i ++)
+            {
+                yield return new WaitForSeconds(interval);
+                onData.Invoke(i, strings[i+1]);
+            }
+        }
+        
         public IEnumerator SendAssetBundle(
             RuntimePlatform platform, int maxPacketSize, float interval, Action<int, int, byte[]> onData)
         {
-            var bundle = assetsData;
+            var bundle = BundleData(platform);
             if (onData == null) yield break;
 
             var data = new byte[maxPacketSize];
@@ -67,16 +98,21 @@ namespace Network.Assets
             for (var i = 0; i < bundle.Length; i += data.Length)
             {
                 yield return new WaitForSeconds(interval);
-
                 var size = Mathf.Min(data.Length, bundle.Length - i);
-                
-                for (var j = 0; j < size; j++)
-                {
-                    data[j] = bundle[i + j];
-                }
-
+                for (var j = 0; j < size; j++) data[j] = bundle[i + j];
                 onData.Invoke(i, size, data);
             }
+        }
+
+        public void InitializeStringGet(int length)
+        {
+            stringsLength = length;
+        }
+
+        public void StringGet(int i, string s)
+        {
+            strings.Register(i, s);
+            stringsProgress++;
         }
 
         public void InitializeDataGet(int length)
@@ -84,16 +120,14 @@ namespace Network.Assets
             assetsData = new byte[length];
         }
 
-        public bool DataGet(int start, int length, byte[] data)
+        public void DataGet(int start, int length, byte[] data)
         {
             for (var i = 0; i < length; i++)
                 assetsData[i + start] = data[i];
             assetsProgress += length;
 
-            if (assetsProgress != assetsData.Length) return false;
-            
+            if (assetsProgress != assetsData.Length) return;
             assets = AssetBundle.LoadFromMemory(assetsData);
-            return true;
 
         }
 
@@ -114,6 +148,7 @@ namespace Network.Assets
             // TODO check that the assets are the same for all platforms
             foreach (var asset in assets.LoadAllAssets())
                 strings.Register(asset.name);
+            stringsProgress = stringsLength = strings.Length;
         }
 
         public GameObject Get(int id)

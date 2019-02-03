@@ -23,6 +23,9 @@ namespace Network
         {
             Application.SetStackTraceLogType(LogType.Log, StackTraceLogType.None);
             Application.SetStackTraceLogType(LogType.Warning, StackTraceLogType.None);
+            Application.SetStackTraceLogType(LogType.Error, StackTraceLogType.Full);
+            Application.SetStackTraceLogType(LogType.Exception, StackTraceLogType.Full);
+            Application.SetStackTraceLogType(LogType.Assert, StackTraceLogType.Full);
             
             server.AssetManager.LoadFromFile($"{Application.streamingAssetsPath}/assets");
             
@@ -57,9 +60,10 @@ namespace Network
             msg.Write((byte) NetOp.SystemInfo);
             connection.SendMessage(msg, NetDeliveryMethod.ReliableUnordered, 0);
             
-            /*msg = server.NetPeer.CreateMessage();
+            msg = server.NetPeer.CreateMessage();
             msg.Write((byte) NetOp.StringsStart);
-            connection.SendMessage(msg, NetDeliveryMethod.ReliableUnordered, 0);*/
+            msg.Write(server.AssetManager.StringsLength);
+            connection.SendMessage(msg, NetDeliveryMethod.ReliableUnordered, 0);
             
             Debug.Log(connection.RemoteEndPoint + " connected");
         }
@@ -73,6 +77,7 @@ namespace Network
         private void ServerOnData(ref NetMessage msg)
         {
             RuntimePlatform platform;
+            NetConnection connection;
             switch (msg.op)
             {
                 case NetOp.SystemInfo:
@@ -83,11 +88,24 @@ namespace Network
                         msg.res.Write(server.AssetManager.Size(platform));
                     }
                     break;
+                case NetOp.StringsStart:
+                    connection = msg.msg.SenderConnection;
+                    StartCoroutine(server.AssetManager.SendStrings( 
+                        msg.msg.SenderConnection.AverageRoundtripTime, (i, s) =>
+                        {
+                            var m = server.NetPeer.CreateMessage();
+                            m.Write((byte) NetOp.StringsData);
+                            m.Write(i);
+                            m.Write(s);
+
+                            connection.SendMessage(m, NetDeliveryMethod.ReliableUnordered, 0);
+                        }));
+                    break;
                 case NetOp.AssetsStart:
                     platform = (RuntimePlatform) msg.msg.ReadByte();
                     if (server.AssetManager.Available(platform))
                     {
-                        var connection = msg.msg.SenderConnection;
+                        connection = msg.msg.SenderConnection;
                         StartCoroutine(server.AssetManager.SendAssetBundle(
                             platform, 
                             msg.msg.SenderConnection.CurrentMTU - 100, 

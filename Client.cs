@@ -58,7 +58,7 @@ namespace Network
         private void ClientDisconnected(NetConnection connection)
         {
             connected = false;
-            Debug.Log("Disconnecting");
+            Debug.Log("Disconnected");
         }
 
         private void ClientConnected(NetConnection connection)
@@ -87,6 +87,16 @@ namespace Network
                     msg.res.Write((byte)NetOp.SystemInfo);
                     msg.res.Write((byte)Application.platform);
                     break;
+                case NetOp.StringsStart:
+                    msg.res.Write((byte)NetOp.StringsStart);
+                    client.AssetManager.InitializeStringGet(msg.msg.ReadInt32());
+                    break;
+                case NetOp.StringsData:
+                    client.AssetManager.StringGet(msg.msg.ReadInt32(), msg.msg.ReadString());
+                    
+                    if (client.AssetManager.Ready)
+                        msg.res.Write((byte)NetOp.Ready);
+                    break;
                 case NetOp.AssetsStart:
                     msg.res.Write((byte)NetOp.AssetsStart);
                     msg.res.Write((byte)Application.platform);
@@ -96,8 +106,13 @@ namespace Network
                     var start = msg.msg.ReadInt32();
                     var length = msg.msg.ReadInt32();
                     var data = msg.msg.ReadBytes(length);
-                    if (client.AssetManager.DataGet(start,length,data))
+                    client.AssetManager.DataGet(start, length, data);
+                    
+                    if (client.AssetManager.Ready)
                         msg.res.Write((byte)NetOp.Ready);
+                    break;
+                default:
+                    Debug.LogWarning("Unknown operation: "+msg.op);
                     break;
             }
         }
