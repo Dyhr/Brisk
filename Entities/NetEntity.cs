@@ -19,8 +19,12 @@ namespace Network.Entities
         [SerializeField] private int id = 0;
 
         public bool Local => local;
-        public int Id => id;
-        
+        public int Id
+        {
+            get => id;
+            internal set => id = value;
+        }
+
         private NetBehaviour[] behaviours;
         
         
@@ -28,11 +32,6 @@ namespace Network.Entities
         {
             if (client == null) client = FindObjectOfType<Client>();
             behaviours = GetComponents<NetBehaviour>();
-
-            if(client == null)
-                Debug.LogError("No Client found for NetEntity", this);
-            else
-                client.Register(this);
         }
 
         private void OnDestroy()

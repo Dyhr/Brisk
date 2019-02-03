@@ -83,7 +83,7 @@ namespace Network.Assets
             for (var i = 0; i < strings.Length; i ++)
             {
                 yield return new WaitForSeconds(interval);
-                onData.Invoke(i, strings[i+1]);
+                onData.Invoke(i+1, strings[i+1]);
             }
         }
         
@@ -151,11 +151,9 @@ namespace Network.Assets
             stringsProgress = stringsLength = strings.Length;
         }
 
-        public GameObject Get(int id)
-        {
-            return assets.LoadAsset<GameObject>(strings[id]);
-        }
-
         #endregion
+
+        public GameObject this[int id] => assets.LoadAsset<GameObject>(strings[id]);
+        public int this[string asset] => strings[asset];
     }
 }

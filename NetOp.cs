@@ -15,5 +15,8 @@ namespace Network
         AssetsData   = 0x11,
         StringsStart = 0x12,
         StringsData  = 0x13,
+        
+        EntityUpdate = 0x80,
+        NewEntity    = 0x81,
     }
 }

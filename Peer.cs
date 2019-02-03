@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using Lidgren.Network;
 using Network.Assets;
 using Network.Config;
+using Network.Entities;
 using UnityEngine;
 
 namespace Network
@@ -17,7 +18,8 @@ namespace Network
         
         public T NetPeer => peer as T;
         
-        public readonly AssetManager AssetManager = new AssetManager();
+        public readonly AssetManager assetManager = new AssetManager();
+        public readonly EntityManager entityManager = new EntityManager();
 
         private NetPeer peer;
 

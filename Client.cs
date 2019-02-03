@@ -89,27 +89,34 @@ namespace Network
                     break;
                 case NetOp.StringsStart:
                     msg.res.Write((byte)NetOp.StringsStart);
-                    client.AssetManager.InitializeStringGet(msg.msg.ReadInt32());
+                    client.assetManager.InitializeStringGet(msg.msg.ReadInt32());
                     break;
                 case NetOp.StringsData:
-                    client.AssetManager.StringGet(msg.msg.ReadInt32(), msg.msg.ReadString());
+                    client.assetManager.StringGet(msg.msg.ReadInt32(), msg.msg.ReadString());
                     
-                    if (client.AssetManager.Ready)
+                    if (client.assetManager.Ready)
                         msg.res.Write((byte)NetOp.Ready);
                     break;
                 case NetOp.AssetsStart:
                     msg.res.Write((byte)NetOp.AssetsStart);
                     msg.res.Write((byte)Application.platform);
-                    client.AssetManager.InitializeDataGet(msg.msg.ReadInt32());
+                    client.assetManager.InitializeDataGet(msg.msg.ReadInt32());
                     break;
                 case NetOp.AssetsData:
                     var start = msg.msg.ReadInt32();
                     var length = msg.msg.ReadInt32();
                     var data = msg.msg.ReadBytes(length);
-                    client.AssetManager.DataGet(start, length, data);
+                    client.assetManager.DataGet(start, length, data);
                     
-                    if (client.AssetManager.Ready)
+                    if (client.assetManager.Ready)
                         msg.res.Write((byte)NetOp.Ready);
+                    break;
+                case NetOp.NewEntity:
+                    var assetId = msg.msg.ReadInt32();
+                    var entityId = msg.msg.ReadInt32();
+
+                    var entity = client.entityManager.CreateEntity(client.assetManager, assetId, entityId);
+                    entities.Add(entity);
                     break;
                 default:
                     Debug.LogWarning("Unknown operation: "+msg.op);

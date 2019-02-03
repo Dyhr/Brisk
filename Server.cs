@@ -27,7 +27,7 @@ namespace Network
             Application.SetStackTraceLogType(LogType.Exception, StackTraceLogType.Full);
             Application.SetStackTraceLogType(LogType.Assert, StackTraceLogType.Full);
             
-            server.AssetManager.LoadFromFile($"{Application.streamingAssetsPath}/assets");
+            server.assetManager.LoadFromFile($"{Application.streamingAssetsPath}/assets");
             
             server.Connected += ServerOnConnected;
             server.Disconnected += ServerOnDisconnected;
@@ -62,7 +62,7 @@ namespace Network
             
             msg = server.NetPeer.CreateMessage();
             msg.Write((byte) NetOp.StringsStart);
-            msg.Write(server.AssetManager.StringsLength);
+            msg.Write(server.assetManager.StringsLength);
             connection.SendMessage(msg, NetDeliveryMethod.ReliableUnordered, 0);
             
             Debug.Log(connection.RemoteEndPoint + " connected");
@@ -82,15 +82,15 @@ namespace Network
             {
                 case NetOp.SystemInfo:
                     platform = (RuntimePlatform) msg.msg.ReadByte();
-                    if (server.AssetManager.Available(platform))
+                    if (server.assetManager.Available(platform))
                     {
                         msg.res.Write((byte)NetOp.AssetsStart);
-                        msg.res.Write(server.AssetManager.Size(platform));
+                        msg.res.Write(server.assetManager.Size(platform));
                     }
                     break;
                 case NetOp.StringsStart:
                     connection = msg.msg.SenderConnection;
-                    StartCoroutine(server.AssetManager.SendStrings( 
+                    StartCoroutine(server.assetManager.SendStrings( 
                         msg.msg.SenderConnection.AverageRoundtripTime, (i, s) =>
                         {
                             var m = server.NetPeer.CreateMessage();
@@ -103,10 +103,10 @@ namespace Network
                     break;
                 case NetOp.AssetsStart:
                     platform = (RuntimePlatform) msg.msg.ReadByte();
-                    if (server.AssetManager.Available(platform))
+                    if (server.assetManager.Available(platform))
                     {
                         connection = msg.msg.SenderConnection;
-                        StartCoroutine(server.AssetManager.SendAssetBundle(
+                        StartCoroutine(server.assetManager.SendAssetBundle(
                             platform, 
                             msg.msg.SenderConnection.CurrentMTU - 100, 
                             msg.msg.SenderConnection.AverageRoundtripTime, (start, length, data) =>
@@ -124,6 +124,15 @@ namespace Network
                     break;
                 case NetOp.Ready:
                     Debug.Log(msg.msg.SenderEndPoint + " is ready");
+
+                    var assetId = server.assetManager["PlayerController"];
+                    var entityId = msg.msg.SenderEndPoint.Port;
+
+                    server.entityManager.CreateEntity(server.assetManager, assetId, entityId);
+                    
+                    msg.res.Write((byte) NetOp.NewEntity);
+                    msg.res.Write(assetId);
+                    msg.res.Write(entityId);
                     break;
             }
         }
