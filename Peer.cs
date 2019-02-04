@@ -84,7 +84,7 @@ namespace Brisk
 
         public void Stop(string message)
         {
-            peer.Shutdown(message);
+            peer?.Shutdown(message);
         }
         
         #endregion
@@ -98,6 +98,8 @@ namespace Brisk
 
         public void Receive()
         {
+            if (peer == null) return;
+            
             NetIncomingMessage msg;
             while ((msg = peer.ReadMessage()) != null)
             {

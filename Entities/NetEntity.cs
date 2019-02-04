@@ -15,7 +15,6 @@ namespace Brisk.Entities
         private NetBehaviour[] behaviours;
         private Vector3 prevPosition;
         
-        
         private void Start()
         {
             behaviours = GetComponents<NetBehaviour>();

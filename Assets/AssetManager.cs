@@ -146,14 +146,16 @@ namespace Brisk.Assets
         private void InitializeStringDictionary()
         {
             // TODO check that the assets are the same for all platforms
-            foreach (var asset in assets.LoadAllAssets())
+            foreach (var asset in assets.LoadAllAssets()) {
                 strings.Register(asset.name);
+                Debug.Log(asset.name +" <=> "+strings[asset.name]);
+            }
             stringsProgress = stringsLength = strings.Length;
         }
+        
+        public GameObject this[int id] => id != 0 ? assets.LoadAsset<GameObject>(strings[id]) : null;
+        public int this[string asset] => strings[asset];
 
         #endregion
-
-        public GameObject this[int id] => assets.LoadAsset<GameObject>(strings[id]);
-        public int this[string asset] => strings[asset];
     }
 }

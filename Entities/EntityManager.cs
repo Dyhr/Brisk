@@ -9,21 +9,30 @@ namespace Brisk.Entities
     {
         private readonly Dictionary<int, NetEntity> entities = new Dictionary<int, NetEntity>();
         private readonly HashSet<int> deadEntities = new HashSet<int>();
+
+        private int nextEntityId;
         
+
+        public NetEntity CreateEntity(AssetManager assetManager, int assetId)
+        {
+            return CreateEntity(assetManager, assetId, ++nextEntityId);
+        }
         public NetEntity CreateEntity(AssetManager assets, int assetId, int entityId)
         {
-            var gameObject = Object.Instantiate(assets[assetId]);
-            if (gameObject == null)
+            var asset = assets[assetId];
+            if (asset == null)
             {
                 Debug.LogError("Asset not found for id: "+assetId);
                 return null;
             }
-
+            
+            var gameObject = Object.Instantiate(asset);
             var entity = gameObject.GetComponent<NetEntity>();
 
             if (entity == null)
             {
                 Debug.LogError("Cannot create asset without an Entity for id: "+assetId);
+                Object.DestroyImmediate(gameObject);
                 return null;
             }
 

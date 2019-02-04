@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using Brisk.Assets;
 using Brisk.Config;
 using Lidgren.Network;
 using UnityEngine;
@@ -8,6 +9,7 @@ namespace Brisk
     public class Server : MonoBehaviour
     {
         [SerializeField] private ServerConfig config = null;
+        [SerializeField] private TextAsset level = null;
 
         private readonly Peer<NetServer> server = new Peer<NetServer>();
         private readonly Dictionary<NetConnection, ConnectionInfo> clients = new Dictionary<NetConnection, ConnectionInfo>();
@@ -15,21 +17,28 @@ namespace Brisk
         private int nextUserId;
 
 
-        private void Awake()
+        private void Start()
         {
+            // Set up some logs and listeners
             Application.SetStackTraceLogType(LogType.Log, StackTraceLogType.None);
             Application.SetStackTraceLogType(LogType.Warning, StackTraceLogType.None);
-            Application.SetStackTraceLogType(LogType.Error, StackTraceLogType.Full);
-            Application.SetStackTraceLogType(LogType.Exception, StackTraceLogType.Full);
-            Application.SetStackTraceLogType(LogType.Assert, StackTraceLogType.Full);
-            
-            server.assetManager.LoadFromFile($"{Application.streamingAssetsPath}/assets");
+            Application.SetStackTraceLogType(LogType.Error, StackTraceLogType.ScriptOnly);
+            Application.SetStackTraceLogType(LogType.Exception, StackTraceLogType.ScriptOnly);
+            Application.SetStackTraceLogType(LogType.Assert, StackTraceLogType.ScriptOnly);
             
             server.Connected += ServerOnConnected;
             server.Disconnected += ServerOnDisconnected;
             server.Data += ServerOnData;
-            var success = server.Start(ref config, true);
+            
+            // Load the assets
+            server.assetManager.LoadFromFile($"{Application.streamingAssetsPath}/assets");
 
+            // Load the level
+            Baseline.Load(server.assetManager, server.entityManager, level);
+            Debug.Log($@"Map ""{level.name}"" loaded");
+            
+            // Actually start the server
+            var success = server.Start(ref config, true);
             if (!success) return;
             Debug.Log($"Server running on port {config.Port}");
         }
@@ -137,7 +146,7 @@ namespace Brisk
                         m.Write(transform.position.x);
                         m.Write(transform.position.y);
                         m.Write(transform.position.z);
-                        msg.msg.SenderConnection.SendMessage(m, NetDeliveryMethod.UnreliableSequenced, 0);
+                        msg.msg.SenderConnection.SendMessage(m, NetDeliveryMethod.ReliableUnordered, 0);
                     }
 
                     var assetId = server.assetManager["PlayerController"];
