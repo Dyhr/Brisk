@@ -22,9 +22,9 @@ namespace Brisk
             // Set up some logs and listeners
             Application.SetStackTraceLogType(LogType.Log, StackTraceLogType.None);
             Application.SetStackTraceLogType(LogType.Warning, StackTraceLogType.None);
-            Application.SetStackTraceLogType(LogType.Error, StackTraceLogType.ScriptOnly);
-            Application.SetStackTraceLogType(LogType.Exception, StackTraceLogType.ScriptOnly);
-            Application.SetStackTraceLogType(LogType.Assert, StackTraceLogType.ScriptOnly);
+            Application.SetStackTraceLogType(LogType.Error, StackTraceLogType.None);
+            Application.SetStackTraceLogType(LogType.Exception, StackTraceLogType.None);
+            Application.SetStackTraceLogType(LogType.Assert, StackTraceLogType.None);
             
             server.Connected += ServerOnConnected;
             server.Disconnected += ServerOnDisconnected;
@@ -138,15 +138,11 @@ namespace Brisk
                         m.Write(entity.AssetId);
                         m.Write(entity.Id);
                         m.Write(false);
-                        msg.msg.SenderConnection.SendMessage(m, NetDeliveryMethod.ReliableUnordered, 0);
+                        msg.msg.SenderConnection.SendMessage(m, NetDeliveryMethod.ReliableOrdered, 0);
                         
                         m = server.NetPeer.CreateMessage();
-                        m.Write((byte) NetOp.EntityUpdate);
-                        m.Write(entity.Id);
-                        m.Write(transform.position.x);
-                        m.Write(transform.position.y);
-                        m.Write(transform.position.z);
-                        msg.msg.SenderConnection.SendMessage(m, NetDeliveryMethod.ReliableUnordered, 0);
+                        entity.Serialize(m);
+                        msg.msg.SenderConnection.SendMessage(m, NetDeliveryMethod.ReliableOrdered, 0);
                     }
 
                     var assetId = server.assetManager["PlayerController"];
@@ -174,8 +170,9 @@ namespace Brisk
                     break;
                 case NetOp.EntityUpdate:
                     var id = msg.msg.ReadInt32();
-                    var pos = new Vector3(msg.msg.ReadFloat(),msg.msg.ReadFloat(),msg.msg.ReadFloat());
-                    server.entityManager[id].transform.position = pos;
+                    var e = server.entityManager[id];
+
+                    e.Deserialize(msg.msg);
                     
                     foreach (var conn in clients)
                     {
@@ -183,11 +180,7 @@ namespace Brisk
                         if (!conn.Value.ready) continue;
                         
                         var m = server.NetPeer.CreateMessage();
-                        m.Write((byte) NetOp.EntityUpdate);
-                        m.Write(id);
-                        m.Write(pos.x);
-                        m.Write(pos.y);
-                        m.Write(pos.z);
+                        e.Serialize(m);
                         conn.Key.SendMessage(m, NetDeliveryMethod.UnreliableSequenced, 0);
                     }
                     break;

@@ -115,11 +115,10 @@ namespace Brisk
                     break;
                 case NetOp.EntityUpdate:
                     var id = msg.msg.ReadInt32();
-                    var pos = new Vector3(msg.msg.ReadFloat(),msg.msg.ReadFloat(),msg.msg.ReadFloat());
                     entity = client.entityManager[id];
 
                     if (entity != null)
-                        entity.transform.position = pos;
+                        entity.Deserialize(msg.msg);
                     else
                         Debug.LogWarning("Entity not found: "+id);
                     break;
