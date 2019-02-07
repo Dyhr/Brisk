@@ -141,7 +141,7 @@ namespace Brisk
                         msg.msg.SenderConnection.SendMessage(m, NetDeliveryMethod.ReliableOrdered, 0);
                         
                         m = server.NetPeer.CreateMessage();
-                        entity.Serialize(m);
+                        entity.Serialize(config.Serializer, m);
                         msg.msg.SenderConnection.SendMessage(m, NetDeliveryMethod.ReliableOrdered, 0);
                     }
 
@@ -172,7 +172,7 @@ namespace Brisk
                     var id = msg.msg.ReadInt32();
                     var e = server.entityManager[id];
 
-                    e.Deserialize(msg.msg);
+                    e.Deserialize(config.Serializer, msg.msg);
                     
                     foreach (var conn in clients)
                     {
@@ -180,7 +180,7 @@ namespace Brisk
                         if (!conn.Value.ready) continue;
                         
                         var m = server.NetPeer.CreateMessage();
-                        e.Serialize(m);
+                        e.Serialize(config.Serializer, m);
                         conn.Key.SendMessage(m, NetDeliveryMethod.UnreliableSequenced, 0);
                     }
                     break;

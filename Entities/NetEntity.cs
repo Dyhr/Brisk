@@ -29,25 +29,20 @@ namespace Brisk.Entities
             behaviours = GetComponents<NetBehaviour>();
         }
         
-        public void Serialize(NetOutgoingMessage msg)
+        public void Serialize(Serializer serializer, NetOutgoingMessage msg)
         {
             prevPosition = transform.position;
             prevRotation = transform.eulerAngles;
             
             msg.Write((byte)NetOp.EntityUpdate);
             msg.Write(Id);
-            msg.Write(transform.position.x);
-            msg.Write(transform.position.y);
-            msg.Write(transform.position.z);
-            msg.Write(transform.eulerAngles.x);
-            msg.Write(transform.eulerAngles.y);
-            msg.Write(transform.eulerAngles.z);
+
+            serializer.SerializeUnreliable(this, msg);
         }
 
-        public void Deserialize(NetIncomingMessage msg)
+        public void Deserialize(Serializer serializer, NetIncomingMessage msg)
         {
-            transform.position = new Vector3(msg.ReadFloat(),msg.ReadFloat(),msg.ReadFloat());
-            transform.eulerAngles = new Vector3(msg.ReadFloat(),msg.ReadFloat(),msg.ReadFloat());
+            serializer.DeserializeUnreliable(this, msg);
         }
     }
 }

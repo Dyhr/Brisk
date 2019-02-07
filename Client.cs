@@ -118,7 +118,7 @@ namespace Brisk
                     entity = client.entityManager[id];
 
                     if (entity != null)
-                        entity.Deserialize(msg.msg);
+                        entity.Deserialize(config.Serializer, msg.msg);
                     else
                         Debug.LogWarning("Entity not found: "+id);
                     break;
@@ -147,7 +147,7 @@ namespace Brisk
                     if (!entity.Owner || !entity.Dirty) continue;
 
                     var msg = client.NetPeer.CreateMessage();
-                    entity.Serialize(msg);
+                    entity.Serialize(config.Serializer, msg);
                     client.NetPeer.SendMessage(msg, NetDeliveryMethod.UnreliableSequenced);
                 }
             }
