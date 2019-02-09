@@ -181,7 +181,7 @@ namespace Brisk.Serialization
             result.AppendLine( "        };");
             
             result.AppendLine($"        public override void {methodName}<T>(T obj, Lidgren.Network.{messageName} msg) {{");
-            result.AppendLine($"            {dictName}[typeof(T)](obj, msg);");
+            result.AppendLine($"            if ({dictName}.ContainsKey(obj.GetType())) {dictName}[obj.GetType()](obj, msg);");
             result.AppendLine( "        }");
         }
         

@@ -19,14 +19,20 @@ namespace Brisk.Entities
             get => transform.position;
             set => transform.position = value;
         }
+        [SyncUnreliable]
+        public Vector3 Rotation
+        {
+            get => transform.eulerAngles;
+            set => transform.eulerAngles = value;
+        }
 
         private NetBehaviour[] behaviours;
         private Vector3 prevPosition;
         private Vector3 prevRotation;
         
-        private void Start()
+        private void Awake()
         {
-            behaviours = GetComponents<NetBehaviour>();
+            behaviours = GetComponentsInChildren<NetBehaviour>(true);
         }
         
         public void Serialize(Serializer serializer, NetOutgoingMessage msg)
@@ -37,12 +43,20 @@ namespace Brisk.Entities
             msg.Write((byte)NetOp.EntityUpdate);
             msg.Write(Id);
 
-            serializer.SerializeUnreliable(this, msg);
+            foreach (var behaviour in behaviours) 
+            {
+                serializer.SerializeReliable(behaviour, msg);
+                serializer.SerializeUnreliable(behaviour, msg);
+            }
         }
 
         public void Deserialize(Serializer serializer, NetIncomingMessage msg)
         {
-            serializer.DeserializeUnreliable(this, msg);
+            foreach (var behaviour in behaviours)
+            {
+                serializer.DeserializeReliable(behaviour, msg);
+                serializer.DeserializeUnreliable(behaviour, msg);
+            }
         }
     }
 }
