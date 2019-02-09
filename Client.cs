@@ -110,15 +110,14 @@ namespace Brisk
                     var entityId = msg.msg.ReadInt32();
                     var mine = msg.msg.ReadBoolean();
 
-                    entity = client.entityManager.CreateEntity(client.assetManager, assetId, entityId);
-                    entity.Owner = mine;
+                    entity = client.entityManager.CreateEntity(client.assetManager, assetId, mine, entityId);
                     break;
                 case NetOp.EntityUpdate:
                     var id = msg.msg.ReadInt32();
                     entity = client.entityManager[id];
 
                     if (entity != null)
-                        entity.Deserialize(config.Serializer, msg.msg);
+                        entity.Deserialize(config.Serializer, msg.msg, true, true);
                     else
                         Debug.LogWarning("Entity not found: "+id);
                     break;
@@ -133,24 +132,6 @@ namespace Brisk
             var msg = client.NetPeer.CreateMessage();
             msg.Write((byte)NetOp.Ready);
             client.NetPeer.SendMessage(msg, NetDeliveryMethod.ReliableUnordered);
-            
-            StartCoroutine(SendUpdates());
-        }
-
-        private IEnumerator SendUpdates()
-        {
-            while (connected)
-            {
-                yield return new WaitForSeconds(1/sendRate);
-                foreach (var entity in client.entityManager)
-                {
-                    if (!entity.Owner || !entity.Dirty) continue;
-
-                    var msg = client.NetPeer.CreateMessage();
-                    entity.Serialize(config.Serializer, msg);
-                    client.NetPeer.SendMessage(msg, NetDeliveryMethod.UnreliableSequenced);
-                }
-            }
         }
     }
 }

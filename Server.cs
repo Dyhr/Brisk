@@ -131,7 +131,7 @@ namespace Brisk
                     clients[msg.msg.SenderConnection].ready = true;
                     Debug.Log(msg.msg.SenderEndPoint + " is ready");
 
-                    foreach (var entity in server.entityManager)
+                    foreach (var entity in server.entityManager.AllEntities())
                     {
                         var m = server.NetPeer.CreateMessage();
                         m.Write((byte) NetOp.NewEntity);
@@ -141,14 +141,14 @@ namespace Brisk
                         msg.msg.SenderConnection.SendMessage(m, NetDeliveryMethod.ReliableOrdered, 0);
                         
                         m = server.NetPeer.CreateMessage();
-                        entity.Serialize(config.Serializer, m);
+                        entity.Serialize(config.Serializer, m, true, true);
                         msg.msg.SenderConnection.SendMessage(m, NetDeliveryMethod.ReliableOrdered, 0);
                     }
 
                     var assetId = server.assetManager["PlayerController"];
                     var entityId = msg.msg.SenderEndPoint.Port;
 
-                    server.entityManager.CreateEntity(server.assetManager, assetId, entityId);
+                    server.entityManager.CreateEntity(server.assetManager, assetId, entityId, false);
                     
                     msg.res.Write((byte) NetOp.NewEntity);
                     msg.res.Write(assetId);
@@ -172,7 +172,7 @@ namespace Brisk
                     var id = msg.msg.ReadInt32();
                     var e = server.entityManager[id];
 
-                    e.Deserialize(config.Serializer, msg.msg);
+                    e.Deserialize(config.Serializer, msg.msg, true, true);
                     
                     foreach (var conn in clients)
                     {
@@ -180,7 +180,7 @@ namespace Brisk
                         if (!conn.Value.ready) continue;
                         
                         var m = server.NetPeer.CreateMessage();
-                        e.Serialize(config.Serializer, m);
+                        e.Serialize(config.Serializer, m, true, true);
                         conn.Key.SendMessage(m, NetDeliveryMethod.UnreliableSequenced, 0);
                     }
                     break;

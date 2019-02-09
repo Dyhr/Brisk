@@ -6,8 +6,6 @@ namespace Brisk.Entities
 {
     public sealed class NetEntity : NetBehaviour
     {
-        [SerializeField] private UpdateType updateType = UpdateType.None;
-        
         public int Id { get; internal set; } = 0;
         public int AssetId { get; internal set; } = 0;
         public bool Owner { get; internal set; }
@@ -35,7 +33,7 @@ namespace Brisk.Entities
             behaviours = GetComponentsInChildren<NetBehaviour>(true);
         }
         
-        public void Serialize(Serializer serializer, NetOutgoingMessage msg)
+        public void Serialize(Serializer serializer, NetOutgoingMessage msg, bool reliable, bool unreliable)
         {
             prevPosition = transform.position;
             prevRotation = transform.eulerAngles;
@@ -45,17 +43,17 @@ namespace Brisk.Entities
 
             foreach (var behaviour in behaviours) 
             {
-                serializer.SerializeReliable(behaviour, msg);
-                serializer.SerializeUnreliable(behaviour, msg);
+                if (reliable) serializer.SerializeReliable(behaviour, msg);
+                if (unreliable) serializer.SerializeUnreliable(behaviour, msg);
             }
         }
 
-        public void Deserialize(Serializer serializer, NetIncomingMessage msg)
+        public void Deserialize(Serializer serializer, NetIncomingMessage msg, bool reliable, bool unreliable)
         {
             foreach (var behaviour in behaviours)
             {
-                serializer.DeserializeReliable(behaviour, msg);
-                serializer.DeserializeUnreliable(behaviour, msg);
+                if (reliable) serializer.DeserializeReliable(behaviour, msg);
+                if (unreliable) serializer.DeserializeUnreliable(behaviour, msg);
             }
         }
     }

@@ -171,6 +171,26 @@ namespace Brisk
             }
         }
 
+        public void UpdateEntities(ServerConfig config)
+        {
+            foreach (var entity in entityManager)
+            {
+                if (!entity.Dirty) continue;
+
+                var unreliableMsg = NetPeer.CreateMessage();
+                entity.Serialize(config.Serializer, unreliableMsg, true, true);
+                var reliableMsg = NetPeer.CreateMessage();
+                entity.Serialize(config.Serializer, reliableMsg, true, true);
+                
+                foreach (var connection in NetPeer.Connections) {
+                    NetPeer.SendMessage(unreliableMsg, connection, NetDeliveryMethod.UnreliableSequenced);
+                    NetPeer.SendMessage(reliableMsg, connection, NetDeliveryMethod.ReliableSequenced);
+                }
+            }
+            
+            NetPeer.FlushSendQueue();
+        }
+        
         #endregion
     }
 }
