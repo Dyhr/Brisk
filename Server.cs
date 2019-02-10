@@ -40,6 +40,7 @@ namespace Brisk
             // Actually start the server
             var success = server.Start(ref config, true);
             if (!success) return;
+            StartCoroutine(server.UpdateEntities(config));
             Debug.Log($"Server running on port {config.Port}");
         }
 
@@ -165,7 +166,7 @@ namespace Brisk
                         m.Write(assetId);
                         m.Write(entityId);
                         m.Write(false);
-                        conn.Key.SendMessage(m, NetDeliveryMethod.ReliableUnordered, 0);
+                        conn.Key.SendMessage(m, NetDeliveryMethod.ReliableOrdered, 0);
                     }
                     break;
                 case NetOp.EntityUpdate:

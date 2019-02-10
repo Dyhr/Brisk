@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Net.Sockets;
 using Brisk.Assets;
 using Brisk.Config;
@@ -150,7 +151,7 @@ namespace Brisk
                     case NetIncomingMessageType.Data:
                         var req = new NetMessage(peer, msg.ReadByte(), msg);
                         Data?.Invoke(ref req);
-                        if (req.hasResponse) peer.SendMessage(req.res, msg.SenderConnection, NetDeliveryMethod.ReliableUnordered);
+                        if (req.hasResponse) peer.SendMessage(req.res, msg.SenderConnection, NetDeliveryMethod.ReliableOrdered);
                         break;
                     case NetIncomingMessageType.DiscoveryRequest:
                         var response = peer.CreateMessage();
@@ -171,24 +172,32 @@ namespace Brisk
             }
         }
 
-        public void UpdateEntities(ServerConfig config)
+        public IEnumerator UpdateEntities(ServerConfig config)
         {
-            foreach (var entity in entityManager)
+            while (true)
             {
-                if (!entity.Dirty) continue;
-
-                var unreliableMsg = NetPeer.CreateMessage();
-                entity.Serialize(config.Serializer, unreliableMsg, true, true);
-                var reliableMsg = NetPeer.CreateMessage();
-                entity.Serialize(config.Serializer, reliableMsg, true, true);
+                yield return new WaitForSeconds(1/config.UpdateRate);
                 
-                foreach (var connection in NetPeer.Connections) {
-                    NetPeer.SendMessage(unreliableMsg, connection, NetDeliveryMethod.UnreliableSequenced);
-                    NetPeer.SendMessage(reliableMsg, connection, NetDeliveryMethod.ReliableSequenced);
+                if (peer.Connections.Count == 0) continue;
+                
+                foreach (var entity in entityManager)
+                {
+                    if (!entity.Dirty) continue;
+
+                    var unreliableMsg = NetPeer.CreateMessage();
+                    entity.Serialize(config.Serializer, unreliableMsg, true, true);
+                    var reliableMsg = NetPeer.CreateMessage();
+                    entity.Serialize(config.Serializer, reliableMsg, true, true);
+                
+                    foreach (var connection in NetPeer.Connections) {
+                        if (connection.Status != NetConnectionStatus.Connected) continue;
+                        NetPeer.SendMessage(unreliableMsg, connection, NetDeliveryMethod.UnreliableSequenced);
+                        NetPeer.SendMessage(reliableMsg, connection, NetDeliveryMethod.ReliableSequenced);
+                    }
                 }
-            }
             
-            NetPeer.FlushSendQueue();
+                NetPeer.FlushSendQueue();
+            }
         }
         
         #endregion

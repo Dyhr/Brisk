@@ -11,12 +11,12 @@ namespace Brisk
         [SerializeField] private ServerConfig config = null;
         [SerializeField] private string host = "localhost";
         [SerializeField] private float connectTimeout = 10f;
-        [SerializeField] private float sendRate = 30;
 
         private readonly Peer<NetClient> client = new Peer<NetClient>();
 
         private bool isConnecting;
         private bool connected;
+        private Coroutine updateRoutine;
         
         private void Awake()
         {
@@ -52,6 +52,8 @@ namespace Brisk
 
         private void ClientDisconnected(NetConnection connection)
         {
+            if(updateRoutine != null) StopCoroutine(updateRoutine);
+            updateRoutine = null;
             connected = false;
             Debug.Log("Disconnected");
         }
@@ -60,6 +62,7 @@ namespace Brisk
         {
             isConnecting = false;
             connected = true;
+            updateRoutine = StartCoroutine(client.UpdateEntities(config));
             Debug.Log("Connected to server: " + connection.RemoteEndPoint);
         }
 
@@ -76,7 +79,6 @@ namespace Brisk
 
         private void ClientData(ref NetMessage msg)
         {
-            NetEntity entity;
             switch (msg.op)
             {
                 case NetOp.SystemInfo:
@@ -106,15 +108,12 @@ namespace Brisk
                     if (client.assetManager.Ready) Ready();
                     break;
                 case NetOp.NewEntity:
-                    var assetId = msg.msg.ReadInt32();
-                    var entityId = msg.msg.ReadInt32();
-                    var mine = msg.msg.ReadBoolean();
-
-                    entity = client.entityManager.CreateEntity(client.assetManager, assetId, mine, entityId);
+                    client.entityManager.CreateEntity(
+                        client.assetManager, msg.msg.ReadInt32(), msg.msg.ReadInt32(), msg.msg.ReadBoolean());
                     break;
                 case NetOp.EntityUpdate:
                     var id = msg.msg.ReadInt32();
-                    entity = client.entityManager[id];
+                    var entity = client.entityManager[id];
 
                     if (entity != null)
                         entity.Deserialize(config.Serializer, msg.msg, true, true);

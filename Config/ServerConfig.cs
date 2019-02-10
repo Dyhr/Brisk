@@ -19,6 +19,8 @@ namespace Brisk.Config
             get => serializer;
             internal set => serializer = value;
         }
+        [SerializeField] private float updateRate = 30;
+        public float UpdateRate => updateRate;
 
 #if UNITY_EDITOR
         [MenuItem("Assets/Create/Network/Server Config")]
