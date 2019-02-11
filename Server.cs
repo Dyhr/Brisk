@@ -89,7 +89,7 @@ namespace Brisk
 
                 var updateTime = server.AverageUpdateTime;
                 
-                Debug.LogFormat("Connected users: {0}. Message sent: {4}. \n" +
+                Debug.LogFormat("Connected users: {0}. Messages sent: {4}. \n" +
                                 "Memory usage: {1}KB. Update time: {2}ms. Performance score: {3:0.00}.",
                     server.NumberOfConnections, 
                     GC.GetTotalMemory(true) / 1024, 
