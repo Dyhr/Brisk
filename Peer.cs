@@ -1,11 +1,15 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Net.Sockets;
 using Brisk.Assets;
 using Brisk.Config;
 using Brisk.Entities;
 using Lidgren.Network;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 namespace Brisk
 {
@@ -16,12 +20,28 @@ namespace Brisk
         public delegate void ConnectionHandler(NetConnection connection);
         public event ConnectionHandler Connected;
         public event ConnectionHandler Disconnected;
-        
-        public T NetPeer => peer as T;
+
+        public Messages Messages { get; private set; }
+
+        public int NumberOfConnections => peer.Connections.Count;
+        public int AverageUpdateTime
+        {
+            get
+            {
+                if (updateTimes.Count == 0) return 0;
+                var avg = (int)updateTimes.Average();
+                updateTimes.Clear();
+                return avg;
+            }
+        }
         
         public readonly AssetManager assetManager = new AssetManager();
         public readonly EntityManager entityManager = new EntityManager();
 
+        private readonly List<int> messageCount = new List<int>();
+        private readonly List<int> memoryUsage = new List<int>();
+        private readonly List<long> updateTimes = new List<long>();
+        private readonly Stopwatch updateWatch = new Stopwatch();
         private NetPeer peer;
 
         #region Lifecycle
@@ -74,6 +94,8 @@ namespace Brisk
                 Debug.LogError(e.Message);
                 return false;
             }
+            
+            Messages = new Messages(peer);
 
             return true;
         }
@@ -88,11 +110,6 @@ namespace Brisk
             peer?.Shutdown(message);
         }
         
-        #endregion
-
-        #region Messages
-
-
         #endregion
 
         #region Main Loop
@@ -149,9 +166,8 @@ namespace Brisk
                         // TODO connection approval
                         break;
                     case NetIncomingMessageType.Data:
-                        var req = new NetMessage(peer, msg.ReadByte(), msg);
+                        var req = new NetMessage(msg.ReadByte(), msg);
                         Data?.Invoke(ref req);
-                        if (req.hasResponse) peer.SendMessage(req.res, msg.SenderConnection, NetDeliveryMethod.ReliableOrdered);
                         break;
                     case NetIncomingMessageType.DiscoveryRequest:
                         var response = peer.CreateMessage();
@@ -176,7 +192,12 @@ namespace Brisk
         {
             while (true)
             {
-                yield return new WaitForSeconds(1/config.UpdateRate);
+                if(updateTimes.Count == 0)
+                    yield return new WaitForSeconds(1/config.UpdateRate);
+                else
+                    yield return new WaitForSeconds(1/config.UpdateRate - updateTimes[updateTimes.Count-1] * 1000);
+                
+                updateWatch.Start();
                 
                 if (peer.Connections.Count == 0) continue;
                 
@@ -184,19 +205,23 @@ namespace Brisk
                 {
                     if (!entity.Dirty) continue;
 
-                    var unreliableMsg = NetPeer.CreateMessage();
+                    var unreliableMsg = peer.CreateMessage();
                     entity.Serialize(config.Serializer, unreliableMsg, true, true);
-                    var reliableMsg = NetPeer.CreateMessage();
+                    var reliableMsg = peer.CreateMessage();
                     entity.Serialize(config.Serializer, reliableMsg, true, true);
                 
-                    foreach (var connection in NetPeer.Connections) {
+                    foreach (var connection in peer.Connections) {
                         if (connection.Status != NetConnectionStatus.Connected) continue;
-                        NetPeer.SendMessage(unreliableMsg, connection, NetDeliveryMethod.UnreliableSequenced);
-                        NetPeer.SendMessage(reliableMsg, connection, NetDeliveryMethod.ReliableSequenced);
+                        peer.SendMessage(unreliableMsg, connection, NetDeliveryMethod.UnreliableSequenced);
+                        peer.SendMessage(reliableMsg, connection, NetDeliveryMethod.ReliableSequenced);
                     }
                 }
-            
-                NetPeer.FlushSendQueue();
+
+                peer.FlushSendQueue();
+                
+                updateWatch.Stop();
+                updateTimes.Add(updateWatch.ElapsedMilliseconds);
+                updateWatch.Reset();
             }
         }
         

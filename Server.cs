@@ -1,8 +1,12 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
 using Brisk.Assets;
 using Brisk.Config;
 using Lidgren.Network;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 namespace Brisk
 {
@@ -40,7 +44,11 @@ namespace Brisk
             // Actually start the server
             var success = server.Start(ref config, true);
             if (!success) return;
+            
+            // Start the routines
             StartCoroutine(server.UpdateEntities(config));
+            StartCoroutine(StatusReport());
+            
             Debug.Log($"Server running on port {config.Port}");
         }
 
@@ -62,14 +70,7 @@ namespace Brisk
         {
             clients.Add(connection, new ConnectionInfo(++nextUserId));
 
-            var msg = server.NetPeer.CreateMessage();
-            msg.Write((byte) NetOp.SystemInfo);
-            connection.SendMessage(msg, NetDeliveryMethod.ReliableUnordered, 0);
-            
-            msg = server.NetPeer.CreateMessage();
-            msg.Write((byte) NetOp.StringsStart);
-            msg.Write(server.assetManager.StringsLength);
-            connection.SendMessage(msg, NetDeliveryMethod.ReliableUnordered, 0);
+            server.Messages.SystemInfo(connection);
             
             Debug.Log(connection.RemoteEndPoint + " connected");
         }
@@ -80,53 +81,50 @@ namespace Brisk
             Debug.Log(connection.RemoteEndPoint + " disconnected");
         }
 
+        private IEnumerator StatusReport()
+        {
+            while (true)
+            {
+                yield return new WaitForSeconds(config.StatusReportTime);
+
+                var updateTime = server.AverageUpdateTime;
+                
+                Debug.LogFormat("Connected users: {0}. Message sent: {4}. \n" +
+                                "Memory usage: {1}KB. Update time: {2}ms. Performance score: {3:0.00}.",
+                    server.NumberOfConnections, 
+                    GC.GetTotalMemory(true) / 1024, 
+                    updateTime, 
+                    1-updateTime/(1000/config.UpdateRate),
+                    0);
+            }
+        }
+
         private void ServerOnData(ref NetMessage msg)
         {
             RuntimePlatform platform;
-            NetConnection connection;
+            var connection = msg.msg.SenderConnection;
             switch (msg.op)
             {
                 case NetOp.SystemInfo:
                     platform = (RuntimePlatform) msg.msg.ReadByte();
                     if (server.assetManager.Available(platform))
-                    {
-                        msg.res.Write((byte)NetOp.AssetsStart);
-                        msg.res.Write(server.assetManager.Size(platform));
-                    }
+                        server.Messages.AssetsStart(connection, server.assetManager.Size(platform));
+                    // TODO handle unknown platforms
+                    server.Messages.StringsStart(connection, server.assetManager.StringsLength);
                     break;
                 case NetOp.StringsStart:
-                    connection = msg.msg.SenderConnection;
                     StartCoroutine(server.assetManager.SendStrings( 
-                        msg.msg.SenderConnection.AverageRoundtripTime, (i, s) =>
-                        {
-                            var m = server.NetPeer.CreateMessage();
-                            m.Write((byte) NetOp.StringsData);
-                            m.Write(i);
-                            m.Write(s);
-
-                            connection.SendMessage(m, NetDeliveryMethod.ReliableUnordered, 0);
-                        }));
+                        msg.msg.SenderConnection.AverageRoundtripTime, 
+                        (i, s) => server.Messages.StringsData(connection, i, s)));
                     break;
                 case NetOp.AssetsStart:
                     platform = (RuntimePlatform) msg.msg.ReadByte();
                     if (server.assetManager.Available(platform))
-                    {
-                        connection = msg.msg.SenderConnection;
                         StartCoroutine(server.assetManager.SendAssetBundle(
                             platform, 
                             msg.msg.SenderConnection.CurrentMTU - 100, 
-                            msg.msg.SenderConnection.AverageRoundtripTime, (start, length, data) =>
-                            {
-                                var m = server.NetPeer.CreateMessage();
-                                m.Write((byte) NetOp.AssetsData);
-                                m.Write(start);
-                                m.Write(length);
-                                m.Write(data);
-
-                                connection.SendMessage(m, NetDeliveryMethod.ReliableUnordered, 0);
-                            }));
-                    }
-
+                            msg.msg.SenderConnection.AverageRoundtripTime, 
+                            (start, length, data) => server.Messages.AssetsData(connection, start, length, data)));
                     break;
                 case NetOp.Ready:
                     clients[msg.msg.SenderConnection].ready = true;
@@ -134,39 +132,23 @@ namespace Brisk
 
                     foreach (var entity in server.entityManager.AllEntities())
                     {
-                        var m = server.NetPeer.CreateMessage();
-                        m.Write((byte) NetOp.NewEntity);
-                        m.Write(entity.AssetId);
-                        m.Write(entity.Id);
-                        m.Write(false);
-                        msg.msg.SenderConnection.SendMessage(m, NetDeliveryMethod.ReliableOrdered, 0);
-                        
-                        m = server.NetPeer.CreateMessage();
-                        entity.Serialize(config.Serializer, m, true, true);
-                        msg.msg.SenderConnection.SendMessage(m, NetDeliveryMethod.ReliableOrdered, 0);
+                        server.Messages.NewEntity(connection, entity.AssetId, entity.Id, false);
+
+                        server.Messages.EntityUpdate(connection, config.Serializer, entity);
                     }
 
                     var assetId = server.assetManager["PlayerController"];
                     var entityId = msg.msg.SenderEndPoint.Port;
 
                     server.entityManager.CreateEntity(server.assetManager, assetId, entityId, false);
-                    
-                    msg.res.Write((byte) NetOp.NewEntity);
-                    msg.res.Write(assetId);
-                    msg.res.Write(entityId);
-                    msg.res.Write(true);
+                    server.Messages.NewEntity(connection, assetId, entityId, true);
 
                     foreach (var conn in clients)
                     {
                         if (conn.Key == msg.msg.SenderConnection) continue;
                         if (!conn.Value.ready) continue;
 
-                        var m = server.NetPeer.CreateMessage();
-                        m.Write((byte) NetOp.NewEntity);
-                        m.Write(assetId);
-                        m.Write(entityId);
-                        m.Write(false);
-                        conn.Key.SendMessage(m, NetDeliveryMethod.ReliableOrdered, 0);
+                        server.Messages.NewEntity(conn.Key, assetId, entityId, false);
                     }
                     break;
                 case NetOp.EntityUpdate:
@@ -180,9 +162,7 @@ namespace Brisk
                         if (conn.Key == msg.msg.SenderConnection) continue;
                         if (!conn.Value.ready) continue;
                         
-                        var m = server.NetPeer.CreateMessage();
-                        e.Serialize(config.Serializer, m, true, true);
-                        conn.Key.SendMessage(m, NetDeliveryMethod.UnreliableSequenced, 0);
+                        server.Messages.EntityUpdate(conn.Key, config.Serializer, e);
                     }
                     break;
                 default:

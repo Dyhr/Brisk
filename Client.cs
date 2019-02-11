@@ -79,24 +79,24 @@ namespace Brisk
 
         private void ClientData(ref NetMessage msg)
         {
+            var connection = msg.msg.SenderConnection;
             switch (msg.op)
             {
                 case NetOp.SystemInfo:
-                    msg.res.Write((byte)NetOp.SystemInfo);
-                    msg.res.Write((byte)Application.platform);
+                    client.Messages.SystemInfo(connection, Application.platform);
                     break;
+                
                 case NetOp.StringsStart:
-                    msg.res.Write((byte)NetOp.StringsStart);
                     client.assetManager.InitializeStringGet(msg.msg.ReadInt32());
+                    client.Messages.StringsStart(connection);
                     break;
                 case NetOp.StringsData:
                     client.assetManager.StringGet(msg.msg.ReadInt32(), msg.msg.ReadString());
                     
-                    if (client.assetManager.Ready) Ready();
+                    if (client.assetManager.Ready) client.Messages.Ready(connection);
                     break;
                 case NetOp.AssetsStart:
-                    msg.res.Write((byte)NetOp.AssetsStart);
-                    msg.res.Write((byte)Application.platform);
+                    client.Messages.AssetsStart(connection, Application.platform);
                     client.assetManager.InitializeDataGet(msg.msg.ReadInt32());
                     break;
                 case NetOp.AssetsData:
@@ -105,8 +105,9 @@ namespace Brisk
                     var data = msg.msg.ReadBytes(length);
                     client.assetManager.DataGet(start, length, data);
 
-                    if (client.assetManager.Ready) Ready();
+                    if (client.assetManager.Ready) client.Messages.Ready(connection);
                     break;
+                
                 case NetOp.NewEntity:
                     client.entityManager.CreateEntity(
                         client.assetManager, msg.msg.ReadInt32(), msg.msg.ReadInt32(), msg.msg.ReadBoolean());
@@ -124,13 +125,6 @@ namespace Brisk
                     Debug.LogWarning("Unknown operation: "+msg.op);
                     break;
             }
-        }
-
-        private void Ready()
-        {
-            var msg = client.NetPeer.CreateMessage();
-            msg.Write((byte)NetOp.Ready);
-            client.NetPeer.SendMessage(msg, NetDeliveryMethod.ReliableUnordered);
         }
     }
 }
