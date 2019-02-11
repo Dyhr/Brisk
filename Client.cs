@@ -15,7 +15,6 @@ namespace Brisk
         private readonly Peer<NetClient> client = new Peer<NetClient>();
 
         private bool isConnecting;
-        private bool connected;
         private Coroutine updateRoutine;
         
         private void Awake()
@@ -54,14 +53,12 @@ namespace Brisk
         {
             if(updateRoutine != null) StopCoroutine(updateRoutine);
             updateRoutine = null;
-            connected = false;
             Debug.Log("Disconnected");
         }
 
         private void ClientConnected(NetConnection connection)
         {
             isConnecting = false;
-            connected = true;
             updateRoutine = StartCoroutine(client.UpdateEntities(config));
             Debug.Log("Connected to server: " + connection.RemoteEndPoint);
         }

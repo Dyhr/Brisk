@@ -95,7 +95,7 @@ namespace Brisk
                     GC.GetTotalMemory(true) / 1024, 
                     updateTime, 
                     1-updateTime/(1000/config.UpdateRate),
-                    0);
+                    server.AverageMessagesSent);
             }
         }
 
@@ -133,7 +133,6 @@ namespace Brisk
                     foreach (var entity in server.entityManager.AllEntities())
                     {
                         server.Messages.NewEntity(connection, entity.AssetId, entity.Id, false);
-
                         server.Messages.EntityUpdate(connection, config.Serializer, entity);
                     }
 

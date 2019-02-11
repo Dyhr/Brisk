@@ -34,6 +34,17 @@ namespace Brisk
                 return avg;
             }
         }
+
+        public int AverageMessagesSent
+        {
+            get
+            {
+                if (messageCount.Count == 0) return 0;
+                var avg = (int)messageCount.Average();
+                messageCount.Clear();
+                return avg;
+            }
+        }
         
         public readonly AssetManager assetManager = new AssetManager();
         public readonly EntityManager entityManager = new EntityManager();
@@ -222,6 +233,8 @@ namespace Brisk
                 updateWatch.Stop();
                 updateTimes.Add(updateWatch.ElapsedMilliseconds);
                 updateWatch.Reset();
+                messageCount.Add(Messages.Count);
+                Messages.ResetCount();
             }
         }
         
