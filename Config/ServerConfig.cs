@@ -1,4 +1,5 @@
-﻿using Brisk.Serialization;
+﻿using Brisk.Actions;
+using Brisk.Serialization;
 using UnityEngine;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -17,6 +18,12 @@ namespace Brisk.Config
         {
             get => serializer;
             internal set => serializer = value;
+        }
+        [SerializeField] private ActionSet actionSet = null;
+        public ActionSet ActionSet
+        {
+            get => actionSet;
+            internal set => actionSet = value;
         }
         [SerializeField] private float updateRate = 30;
         public float UpdateRate => updateRate;

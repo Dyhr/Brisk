@@ -155,7 +155,7 @@ namespace Brisk
                     var id = msg.msg.ReadInt32();
                     var e = server.entityManager[id];
 
-                    e.Deserialize(config.Serializer, msg.msg, true, true);
+                    if(e != null) e.Deserialize(config.Serializer, msg.msg, true, true);
                     
                     foreach (var conn in clients)
                     {
@@ -179,8 +179,14 @@ namespace Brisk
 
         private void HandleAction(NetIncomingMessage msg, bool local)
         {
-            Debug.Log(msg.ReadInt32());
-            Debug.Log(msg.ReadInt32());
+            var actionId = msg.ReadInt32();
+            var entityId = msg.ReadInt32();
+
+            var entity = server.entityManager[entityId];
+            if (entity != null)
+                config.ActionSet.Call(entity, actionId);
+            else
+                Debug.LogError($"Entity not found with ID: {entityId}");
         }
     }
 }

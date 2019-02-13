@@ -38,7 +38,7 @@ namespace Brisk.Entities
 
         private void Start()
         {
-            if(Owner) Peer.Messages.ActionLocal(0, Id);
+            if(Owner && Peer.IsClient) Peer.Messages.ActionLocal(0, Id);
         }
 
         public void Serialize(Serializer serializer, NetOutgoingMessage msg, bool reliable, bool unreliable)
@@ -68,6 +68,7 @@ namespace Brisk.Entities
         [Action]
         public void Destroy()
         {
+            Debug.Log($"Destroying {Id} : {name}");
             Destroy(gameObject);
         }
     }

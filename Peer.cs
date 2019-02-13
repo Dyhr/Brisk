@@ -23,6 +23,8 @@ namespace Brisk
         internal event ConnectionHandler Disconnected;
 
         internal Messages.Messages Messages { get; private set; }
+        internal bool IsClient => peer is NetClient;
+        internal bool IsServer => peer is NetServer;
 
         internal int NumberOfConnections => peer.Connections.Count;
         internal int AverageUpdateTime
