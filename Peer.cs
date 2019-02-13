@@ -7,24 +7,25 @@ using System.Net.Sockets;
 using Brisk.Assets;
 using Brisk.Config;
 using Brisk.Entities;
+using Brisk.Messages;
 using Lidgren.Network;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
 namespace Brisk
 {
-    internal sealed class Peer<T> where T : NetPeer
+    public sealed class Peer
     {
-        public delegate void DataHandler(ref NetMessage msg);
-        public event DataHandler Data;
-        public delegate void ConnectionHandler(NetConnection connection);
-        public event ConnectionHandler Connected;
-        public event ConnectionHandler Disconnected;
+        internal delegate void DataHandler(ref NetMessage msg);
+        internal event DataHandler Data;
+        internal delegate void ConnectionHandler(NetConnection connection);
+        internal event ConnectionHandler Connected;
+        internal event ConnectionHandler Disconnected;
 
-        public Messages Messages { get; private set; }
+        internal Messages.Messages Messages { get; private set; }
 
-        public int NumberOfConnections => peer.Connections.Count;
-        public int AverageUpdateTime
+        internal int NumberOfConnections => peer.Connections.Count;
+        internal int AverageUpdateTime
         {
             get
             {
@@ -35,7 +36,7 @@ namespace Brisk
             }
         }
 
-        public int AverageMessagesSent
+        internal int AverageMessagesSent
         {
             get
             {
@@ -46,8 +47,8 @@ namespace Brisk
             }
         }
         
-        public readonly AssetManager assetManager = new AssetManager();
-        public readonly EntityManager entityManager = new EntityManager();
+        internal readonly AssetManager assetManager = new AssetManager();
+        internal readonly EntityManager entityManager = new EntityManager();
 
         private readonly List<int> messageCount = new List<int>();
         private readonly List<int> memoryUsage = new List<int>();
@@ -57,7 +58,7 @@ namespace Brisk
 
         #region Lifecycle
         
-        public bool Start(ref ServerConfig config, bool isHost)
+        internal bool Start<T>(ref ServerConfig config, bool isHost) where T : NetPeer
         {
             // Find some ServerConfig in Resources if it's not already assigned
             if (config == null)
@@ -106,17 +107,17 @@ namespace Brisk
                 return false;
             }
             
-            Messages = new Messages(peer);
+            Messages = new Messages.Messages(peer);
 
             return true;
         }
 
-        public bool Connect(string host, int port)
+        internal bool Connect(string host, int port)
         {
             return peer.DiscoverKnownPeer(host, port);
         }
 
-        public void Stop(string message)
+        internal void Stop(string message)
         {
             peer?.Shutdown(message);
         }
@@ -125,7 +126,7 @@ namespace Brisk
 
         #region Main Loop
 
-        public void Receive()
+        internal void Receive()
         {
             if (peer == null) return;
             
@@ -199,7 +200,7 @@ namespace Brisk
             }
         }
 
-        public IEnumerator UpdateEntities(ServerConfig config)
+        internal IEnumerator UpdateEntities(ServerConfig config)
         {
             while (true)
             {

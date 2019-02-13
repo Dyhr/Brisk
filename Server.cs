@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using Brisk.Assets;
 using Brisk.Config;
+using Brisk.Messages;
 using Lidgren.Network;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
@@ -15,7 +16,7 @@ namespace Brisk
         [SerializeField] private ServerConfig config = null;
         [SerializeField] private TextAsset level = null;
 
-        private readonly Peer<NetServer> server = new Peer<NetServer>();
+        private readonly Peer server = new Peer();
         private readonly Dictionary<NetConnection, ConnectionInfo> clients = new Dictionary<NetConnection, ConnectionInfo>();
 
         private int nextUserId;
@@ -38,11 +39,11 @@ namespace Brisk
             server.assetManager.LoadFromFile($"{Application.streamingAssetsPath}/assets");
 
             // Load the level
-            Baseline.Load(server.assetManager, server.entityManager, level);
+            Baseline.Load(server, server.assetManager, server.entityManager, level);
             Debug.Log($@"Map ""{level.name}"" loaded");
             
             // Actually start the server
-            var success = server.Start(ref config, true);
+            var success = server.Start<NetServer>(ref config, true);
             if (!success) return;
             
             // Start the routines
@@ -102,7 +103,7 @@ namespace Brisk
         private void ServerOnData(ref NetMessage msg)
         {
             RuntimePlatform platform;
-            var connection = msg.msg.SenderConnection;
+            var connection = msg.Connection;
             switch (msg.op)
             {
                 case NetOp.SystemInfo:
@@ -139,7 +140,7 @@ namespace Brisk
                     var assetId = server.assetManager["PlayerController"];
                     var entityId = msg.msg.SenderEndPoint.Port;
 
-                    server.entityManager.CreateEntity(server.assetManager, assetId, entityId, false);
+                    server.entityManager.CreateEntity(server, server.assetManager, assetId, entityId, false);
                     server.Messages.NewEntity(connection, assetId, entityId, true);
 
                     foreach (var conn in clients)
@@ -164,10 +165,22 @@ namespace Brisk
                         server.Messages.EntityUpdate(conn.Key, config.Serializer, e);
                     }
                     break;
+                case NetOp.ActionLocal:
+                    HandleAction(msg.msg, true);
+                    break;
+                case NetOp.ActionGlobal:
+                    HandleAction(msg.msg, false);
+                    break;
                 default:
                     Debug.LogWarning("Unknown operation: "+msg.op);
                     break;
             }
+        }
+
+        private void HandleAction(NetIncomingMessage msg, bool local)
+        {
+            Debug.Log(msg.ReadInt32());
+            Debug.Log(msg.ReadInt32());
         }
     }
 }

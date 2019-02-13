@@ -14,11 +14,11 @@ namespace Brisk.Entities
         private int nextEntityId;
         
 
-        public NetEntity CreateEntity(AssetManager assetManager, int assetId)
+        public NetEntity CreateEntity(Peer peer, AssetManager assetManager, int assetId)
         {
-            return CreateEntity(assetManager, assetId, ++nextEntityId, true);
+            return CreateEntity(peer, assetManager, assetId, ++nextEntityId, true);
         }
-        public NetEntity CreateEntity(AssetManager assets, int assetId, int entityId, bool mine)
+        public NetEntity CreateEntity(Peer peer, AssetManager assets, int assetId, int entityId, bool mine)
         {
             var asset = assets[assetId];
             if (asset == null)
@@ -37,6 +37,7 @@ namespace Brisk.Entities
                 return null;
             }
 
+            entity.Peer = peer;
             entity.Id = entityId;
             entity.AssetId = assetId;
             entity.Owner = mine;

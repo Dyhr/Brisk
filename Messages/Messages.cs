@@ -4,9 +4,9 @@ using Brisk.Serialization;
 using Lidgren.Network;
 using UnityEngine;
 
-namespace Brisk
+namespace Brisk.Messages
 {
-    public class Messages
+    public sealed class Messages
     {
         internal int Count { get; private set; }
 
@@ -34,7 +34,7 @@ namespace Brisk
             SendMessage(connection, NetOp.SystemInfo, NetDeliveryMethod.ReliableUnordered);
         }
 
-        public void SystemInfo(NetConnection connection, RuntimePlatform platform)
+        internal void SystemInfo(NetConnection connection, RuntimePlatform platform)
         {
             SendMessage(connection, NetOp.SystemInfo, NetDeliveryMethod.ReliableUnordered, msg =>
             {
@@ -111,6 +111,38 @@ namespace Brisk
         internal void Ready(NetConnection connection)
         {
             SendMessage(connection, NetOp.Ready, NetDeliveryMethod.ReliableUnordered);
+        }
+
+        internal void ActionLocal(int actionId, int entityId)
+        {
+            switch (peer)
+            {
+                case NetClient _ when peer.ConnectionsCount > 0:
+                    SendMessage(peer.Connections[0], NetOp.ActionLocal, NetDeliveryMethod.ReliableUnordered, msg =>
+                        {
+                            msg.Write(actionId);
+                            msg.Write(entityId);
+                        });
+                    break;
+                case NetClient _:
+                    Debug.LogWarning("Not connected");
+                    break;
+                case NetServer _:
+                {
+                    foreach (var connection in peer.Connections)
+                    {
+                        SendMessage(connection, NetOp.ActionLocal, NetDeliveryMethod.ReliableUnordered, msg =>
+                        {
+                            msg.Write(actionId);
+                            msg.Write(entityId);
+                        });
+                    }
+                    break;
+                }
+                default:
+                    Debug.LogError($"Peer is an unknown type: {peer.GetType()}");
+                    break;
+            }
         }
     }
 }

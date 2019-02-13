@@ -1,6 +1,6 @@
 using System;
 
-namespace Brisk
+namespace Brisk.Messages
 {
     [Serializable]
     public enum NetOp : byte
@@ -15,8 +15,16 @@ namespace Brisk
         AssetsData   = 0x11,
         StringsStart = 0x12,
         StringsData  = 0x13,
+        ActionsStart = 0x14,
+        ActionsData  = 0x15,
         
         EntityUpdate = 0x80,
         NewEntity    = 0x81,
+        RemoveEntity = 0x82,
+        ShowEntity   = 0x83,
+        HideEntity   = 0x84,
+        
+        ActionLocal  = 0xA0,
+        ActionGlobal = 0xA1,
     }
 }

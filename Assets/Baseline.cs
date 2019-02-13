@@ -54,13 +54,13 @@ namespace Brisk.Assets
         }
 #endif
 
-        internal static void Load(AssetManager assetManager, EntityManager entityManager, TextAsset level)
+        internal static void Load(Peer peer, AssetManager assetManager, EntityManager entityManager, TextAsset level)
         {
             var entities = JsonUtility.FromJson<EntityArray>(level.text).entities;
 
             foreach (var entity in entities)
             {
-                var e = entityManager.CreateEntity(assetManager, assetManager[entity.name]);
+                var e = entityManager.CreateEntity(peer, assetManager, assetManager[entity.name]);
                 if (e == null) continue;
                 
                 e.transform.position = new Vector3(entity.x, entity.y, entity.z);

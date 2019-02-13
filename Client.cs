@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using Brisk.Config;
 using Brisk.Entities;
+using Brisk.Messages;
 using Lidgren.Network;
 using UnityEngine;
 
@@ -12,7 +13,7 @@ namespace Brisk
         [SerializeField] private string host = "localhost";
         [SerializeField] private float connectTimeout = 10f;
 
-        private readonly Peer<NetClient> client = new Peer<NetClient>();
+        private readonly Peer client = new Peer();
 
         private bool isConnecting;
         private Coroutine updateRoutine;
@@ -29,7 +30,7 @@ namespace Brisk
                 return;
             }
             
-            var success = client.Start(ref config, false);
+            var success = client.Start<NetClient>(ref config, false);
 
             if (!success) return;
 
@@ -107,7 +108,7 @@ namespace Brisk
                 
                 case NetOp.NewEntity:
                     client.entityManager.CreateEntity(
-                        client.assetManager, msg.msg.ReadInt32(), msg.msg.ReadInt32(), msg.msg.ReadBoolean());
+                        client, client.assetManager, msg.msg.ReadInt32(), msg.msg.ReadInt32(), msg.msg.ReadBoolean());
                     break;
                 case NetOp.EntityUpdate:
                     var id = msg.msg.ReadInt32();

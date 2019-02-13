@@ -1,13 +1,16 @@
+using Brisk.Actions;
+using Brisk.Messages;
 using Brisk.Serialization;
 using Lidgren.Network;
 using UnityEngine;
 
 namespace Brisk.Entities
 {
-    public sealed class NetEntity : NetBehaviour
+    public class NetEntity : NetBehaviour
     {
-        public int Id { get; internal set; } = 0;
-        public int AssetId { get; internal set; } = 0;
+        public Peer Peer { get; internal set; }
+        public int Id { get; internal set; }
+        public int AssetId { get; internal set; }
         public bool Owner { get; internal set; }
         public bool Dirty => prevPosition != transform.position || prevRotation != transform.eulerAngles;
 
@@ -32,7 +35,12 @@ namespace Brisk.Entities
         {
             behaviours = GetComponentsInChildren<NetBehaviour>(true);
         }
-        
+
+        private void Start()
+        {
+            if(Owner) Peer.Messages.ActionLocal(0, Id);
+        }
+
         public void Serialize(Serializer serializer, NetOutgoingMessage msg, bool reliable, bool unreliable)
         {
             prevPosition = transform.position;
@@ -55,6 +63,12 @@ namespace Brisk.Entities
                 if (reliable) serializer.DeserializeReliable(behaviour, msg);
                 if (unreliable) serializer.DeserializeUnreliable(behaviour, msg);
             }
+        }
+
+        [Action]
+        public void Destroy()
+        {
+            Destroy(gameObject);
         }
     }
 }
