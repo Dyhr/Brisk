@@ -30,7 +30,7 @@ namespace Brisk
                 return;
             }
             
-            var success = client.Start<NetClient>(ref config, false);
+            var success = client.Start<NetClient>(ref config, false, null);
 
             if (!success) return;
 

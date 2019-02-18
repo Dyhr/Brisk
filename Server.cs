@@ -43,7 +43,7 @@ namespace Brisk
             Debug.Log($@"Map ""{level.name}"" loaded");
             
             // Actually start the server
-            var success = server.Start<NetServer>(ref config, true);
+            var success = server.Start<NetServer>(ref config, true, ConnectionReady);
             if (!success) return;
             
             // Start the routines
@@ -51,6 +51,11 @@ namespace Brisk
             StartCoroutine(StatusReport());
             
             Debug.Log($"Server running on port {config.Port}");
+        }
+
+        private bool ConnectionReady(NetConnection connection)
+        {
+            return clients.TryGetValue(connection, out var info) && info.ready;
         }
 
         private void OnDestroy()
@@ -179,12 +184,13 @@ namespace Brisk
 
         private void HandleAction(NetIncomingMessage msg, bool local)
         {
-            var actionId = msg.ReadInt32();
-            var entityId = msg.ReadInt32();
+            var actionId    = msg.ReadInt32();
+            var entityId    = msg.ReadInt32();
+            var behaviourId = msg.ReadByte();
 
             var entity = server.entityManager[entityId];
             if (entity != null)
-                config.ActionSet.Call(entity, actionId);
+                config.ActionSet.Call(entity, behaviourId, msg, actionId);
             else
                 Debug.LogError($"Entity not found with ID: {entityId}");
         }

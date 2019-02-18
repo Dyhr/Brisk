@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Text;
 using Brisk.Config;
 using Brisk.Entities;
+using Brisk.Serialization;
 using UnityEditor;
 using UnityEngine;
 
@@ -33,7 +34,6 @@ namespace Brisk.Actions
                     actions[type].Add(Tuple.Create(method, actionList.Count));
 
                     actionList.Add($"{type.FullName}.{method.Name}");
-                    Debug.Log($"{type} {method}");
                 }
             }
             
@@ -79,18 +79,38 @@ namespace Brisk.Actions
 
         private static void AddActions(StringBuilder result, Dictionary<Type, List<Tuple<MethodInfo, int>>> actions)
         {
-            result.AppendLine( "        private readonly System.Collections.Generic.Dictionary<int, System.Action<Brisk.Entities.NetBehaviour>> actions =");
-            result.AppendLine( "            new System.Collections.Generic.Dictionary<int, System.Action<Brisk.Entities.NetBehaviour>> {");
+            result.AppendLine( "        private readonly System.Collections.Generic.Dictionary<int, System.Action<Brisk.Entities.NetBehaviour, Lidgren.Network.NetIncomingMessage>> actions =");
+            result.AppendLine( "            new System.Collections.Generic.Dictionary<int, System.Action<Brisk.Entities.NetBehaviour, Lidgren.Network.NetIncomingMessage>> {");
 
             foreach (var actionSet in actions)
-                foreach (var (method, index) in actionSet.Value)
-                    result.AppendLine($"                {{{index}, (bhr) => {{ (({actionSet.Key.FullName})bhr).{method.Name}(); }}}},");
+            foreach (var (method, index) in actionSet.Value)
+            {
+                result.AppendLine($"                {{{index}, (bhr, msg) => {{");
+                AddParameters(result, actionSet.Key.FullName, method);
+                result.AppendLine($"                }}}},");
+            }
             result.AppendLine( "        };");
             result.AppendLine( "");
-            result.AppendLine( "        public override void Call(Brisk.Entities.NetBehaviour bhr, int actionId) {");
-            result.AppendLine( "            if (actions.TryGetValue(actionId, out var action)) action(bhr);");
+            result.AppendLine( "        public override void Call(Brisk.Entities.NetBehaviour bhr, Lidgren.Network.NetIncomingMessage msg, int actionId) {");
+            result.AppendLine( "            if (actions.TryGetValue(actionId, out var action)) action(bhr, msg);");
             result.AppendLine(@"            else UnityEngine.Debug.LogError($""Action not found with ID: {actionId}"");");
             result.AppendLine( "        }");
+            result.AppendLine( "        public override void Serialize(Lidgren.Network.NetIncomingMessage msg, int actionId, object[] args) {");
+            result.AppendLine( "        }");
+        }
+
+        private static void AddParameters(StringBuilder result, string fullName, MethodInfo method)
+        {
+            var i = 0;
+            var args = new StringBuilder();
+            foreach (var parameter in method.GetParameters())
+            {
+                result.AppendLine($"                    var arg{++i} = {SerializerGenerator.ReadMessageData(parameter.ParameterType.FullName)};");
+                if (args.Length > 0) args.Append(",");
+                args.Append("arg");
+                args.Append(i);
+            }
+            result.AppendLine($"                    (({fullName})bhr).{method.Name}({args});");
         }
     }
 }

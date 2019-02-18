@@ -34,11 +34,7 @@ namespace Brisk.Entities
         private void Awake()
         {
             behaviours = GetComponentsInChildren<NetBehaviour>(true);
-        }
-
-        private void Start()
-        {
-            if(Owner && Peer.IsClient) Peer.Messages.ActionLocal(0, Id);
+            foreach (var behaviour in behaviours) behaviour.Entity = this;
         }
 
         public void Serialize(Serializer serializer, NetOutgoingMessage msg, bool reliable, bool unreliable)
@@ -70,6 +66,21 @@ namespace Brisk.Entities
         {
             Debug.Log($"Destroying {Id} : {name}");
             Destroy(gameObject);
+        }
+
+        public NetBehaviour Behaviour(byte behaviourId)
+        {
+            return behaviourId >= behaviours.Length ? null : behaviours[behaviourId];
+        }
+
+        public byte Behaviour(NetBehaviour behaviour)
+        {
+            for(byte i = 0; i < behaviours.Length; i++)
+            {
+                if (behaviours[i] == behaviour)
+                    return i;
+            }
+            return byte.MaxValue;
         }
     }
 }

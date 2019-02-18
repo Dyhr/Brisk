@@ -56,12 +56,17 @@ namespace Brisk
         private readonly List<int> memoryUsage = new List<int>();
         private readonly List<long> updateTimes = new List<long>();
         private readonly Stopwatch updateWatch = new Stopwatch();
+        private Predicate<NetConnection> connectionReady;
         private NetPeer peer;
+        
 
         #region Lifecycle
         
-        internal bool Start<T>(ref ServerConfig config, bool isHost) where T : NetPeer
+        internal bool Start<T>(ref ServerConfig config, bool isHost, Predicate<NetConnection> connectionPredicate) 
+            where T : NetPeer
         {
+            connectionReady = connectionPredicate;
+            
             // Find some ServerConfig in Resources if it's not already assigned
             if (config == null)
             {
@@ -109,7 +114,7 @@ namespace Brisk
                 return false;
             }
             
-            Messages = new Messages.Messages(peer);
+            Messages = new Messages.Messages(peer, config.ActionSet, connectionReady);
 
             return true;
         }

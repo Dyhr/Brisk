@@ -95,33 +95,28 @@ namespace Brisk.Serialization
 
                     var rLines = reliable ? reliableReadLines : unreliableReadLines;
                     var wLines = reliable ? reliableWriteLines : unreliableWriteLines;
+                    wLines.AppendLine($"{indent}obj.{info.Name} = {ReadMessageData(type.FullName)};");
                     switch (type.FullName)
                     {
                         case "System.Byte":
                             rLines.AppendLine($"{indent}msg.Write(obj.{info.Name});");
-                            wLines.AppendLine($"{indent}obj.{info.Name} = msg.ReadByte();");
                             break;
                         case "System.Int16":
                             rLines.AppendLine($"{indent}msg.Write(obj.{info.Name});");
-                            wLines.AppendLine($"{indent}obj.{info.Name} = msg.ReadInt16();");
                             break;
                         case "System.Int32":
                             rLines.AppendLine($"{indent}msg.Write(obj.{info.Name});");
-                            wLines.AppendLine($"{indent}obj.{info.Name} = msg.ReadInt32();");
                             break;
                         case "System.Int64":
                             rLines.AppendLine($"{indent}msg.Write(obj.{info.Name});");
-                            wLines.AppendLine($"{indent}obj.{info.Name} = msg.ReadInt64();");
                             break;
                         case "System.Boolean":
                             rLines.AppendLine($"{indent}msg.Write(obj.{info.Name});");
-                            wLines.AppendLine($"{indent}obj.{info.Name} = msg.ReadBoolean();");
                             break;
                         case "UnityEngine.Vector3":
                             rLines.AppendLine($"{indent}msg.Write(obj.{info.Name}.x);");
                             rLines.AppendLine($"{indent}msg.Write(obj.{info.Name}.y);");
                             rLines.AppendLine($"{indent}msg.Write(obj.{info.Name}.z);");
-                            wLines.AppendLine($"{indent}obj.{info.Name} = new UnityEngine.Vector3(msg.ReadFloat(), msg.ReadFloat(), msg.ReadFloat());");
                             break;
                         default:
                             Debug.LogError($"Type not supported for serialization: {type.FullName}");
@@ -192,6 +187,28 @@ namespace Brisk.Serialization
                 dict.Add(type, new List<Tuple<MemberInfo, bool>>());
                     
             dict[type].Add(Tuple.Create(member, reliable));
+        }
+
+        internal static string ReadMessageData(string type)
+        {
+            switch (type)
+            {
+                case "System.Byte":
+                    return "msg.ReadByte()";
+                case "System.Int16":
+                    return "msg.ReadInt16()";
+                case "System.Int32":
+                    return "msg.ReadInt32()";
+                case "System.Int64":
+                    return "msg.ReadInt64()";
+                case "System.Boolean":
+                    return "msg.ReadBoolean()";
+                case "UnityEngine.Vector3":
+                    return "new UnityEngine.Vector3(msg.ReadFloat(), msg.ReadFloat(), msg.ReadFloat())";
+                default:
+                    Debug.LogError($"Type not supported for serialization: {type}");
+                    return "(object)null";
+            }
         }
     }
 }
