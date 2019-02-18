@@ -22,7 +22,7 @@ namespace Brisk
         internal event ConnectionHandler Connected;
         internal event ConnectionHandler Disconnected;
 
-        internal Messages.Messages Messages { get; private set; }
+        public Messages.Messages Messages { get; private set; }
         internal bool IsClient => peer is NetClient;
         internal bool IsServer => peer is NetServer;
 

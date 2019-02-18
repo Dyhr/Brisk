@@ -122,7 +122,7 @@ namespace Brisk.Messages
             SendMessage(connection, NetOp.Ready, NetDeliveryMethod.ReliableUnordered, false);
         }
 
-        internal void ActionLocal(int actionId, int entityId, byte behaviourId, params object[] args)
+        public void ActionLocal(int actionId, int entityId, byte behaviourId, params object[] args)
         {
             switch (peer)
             {
