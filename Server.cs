@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using Brisk.Assets;
 using Brisk.Config;
+using Brisk.Entities;
 using Brisk.Messages;
 using Lidgren.Network;
 using UnityEngine;
@@ -39,7 +40,7 @@ namespace Brisk
             server.assetManager.LoadFromFile($"{Application.streamingAssetsPath}/assets");
 
             // Load the level
-            Baseline.Load(server, server.assetManager, server.entityManager, level);
+            Baseline.Load(server, server.assetManager, level);
             Debug.Log($@"Map ""{level.name}"" loaded");
             
             // Actually start the server
@@ -136,7 +137,7 @@ namespace Brisk
                     clients[msg.msg.SenderConnection].ready = true;
                     Debug.Log(msg.msg.SenderEndPoint + " is ready");
 
-                    foreach (var entity in server.entityManager.AllEntities())
+                    foreach (var entity in server.entities.Values)
                     {
                         server.Messages.NewEntity(connection, entity.AssetId, entity.Id, false);
                         server.Messages.EntityUpdate(connection, config.Serializer, entity);
@@ -145,7 +146,7 @@ namespace Brisk
                     var assetId = server.assetManager["PlayerController"];
                     var entityId = msg.msg.SenderEndPoint.Port;
 
-                    server.entityManager.CreateEntity(server, server.assetManager, assetId, entityId, false);
+                    NetEntity.Create(server, server.assetManager, assetId, entityId, false);
                     server.Messages.NewEntity(connection, assetId, entityId, true);
 
                     foreach (var conn in clients)
@@ -158,16 +159,17 @@ namespace Brisk
                     break;
                 case NetOp.EntityUpdate:
                     var id = msg.msg.ReadInt32();
-                    var e = server.entityManager[id];
-
-                    if(e != null) e.Deserialize(config.Serializer, msg.msg, true, true);
                     
-                    foreach (var conn in clients)
-                    {
-                        if (conn.Key == msg.msg.SenderConnection) continue;
-                        if (!conn.Value.ready) continue;
-                        
-                        server.Messages.EntityUpdate(conn.Key, config.Serializer, e);
+                    if(server.entities.TryGetValue(id, out var e)) {
+                        e.Deserialize(config.Serializer, msg.msg, true, true);
+                    
+                        foreach (var conn in clients)
+                        {
+                            if (conn.Key == msg.msg.SenderConnection) continue;
+                            if (!conn.Value.ready) continue;
+                            
+                            server.Messages.EntityUpdate(conn.Key, config.Serializer, e);
+                        }
                     }
                     break;
                 case NetOp.ActionLocal:
@@ -188,7 +190,7 @@ namespace Brisk
             var entityId    = msg.ReadInt32();
             var behaviourId = msg.ReadByte();
 
-            var entity = server.entityManager[entityId];
+            var entity = server.entities[entityId];
             if (entity != null)
                 config.ActionSet.Call(entity, behaviourId, msg, actionId);
             else

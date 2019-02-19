@@ -107,12 +107,12 @@ namespace Brisk
                     break;
                 
                 case NetOp.NewEntity:
-                    client.entityManager.CreateEntity(
+                    NetEntity.Create(
                         client, client.assetManager, msg.msg.ReadInt32(), msg.msg.ReadInt32(), msg.msg.ReadBoolean());
                     break;
                 case NetOp.EntityUpdate:
                     var id = msg.msg.ReadInt32();
-                    var entity = client.entityManager[id];
+                    var entity = client.entities[id];
 
                     if (entity != null)
                         entity.Deserialize(config.Serializer, msg.msg, true, true);

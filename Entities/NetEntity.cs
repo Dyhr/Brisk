@@ -1,4 +1,5 @@
 using Brisk.Actions;
+using Brisk.Assets;
 using Brisk.Messages;
 using Brisk.Serialization;
 using Lidgren.Network;
@@ -30,6 +31,38 @@ namespace Brisk.Entities
         private NetBehaviour[] behaviours;
         private Vector3 prevPosition;
         private Vector3 prevRotation;
+        
+
+        internal static NetEntity Create(Peer peer, AssetManager assets, int assetId, int entityId = 0, bool mine = false)
+        {
+            if (entityId == 0) entityId = peer.NextEntityId;
+            
+            var asset = assets[assetId];
+            if (asset == null)
+            {
+                Debug.LogError("Asset not found for id: "+assetId);
+                return null;
+            }
+            
+            var gameObject = Instantiate(asset);
+            var entity = gameObject.GetComponent<NetEntity>();
+
+            if (entity == null)
+            {
+                Debug.LogError("Cannot create asset without an Entity for id: "+assetId);
+                DestroyImmediate(gameObject);
+                return null;
+            }
+
+            entity.Peer = peer;
+            entity.Id = entityId;
+            entity.AssetId = assetId;
+            entity.Owner = mine;
+            
+            if (entity.Owner) peer.ownedEntities.Add(entity);
+            peer.entities.Add(entityId, entity);
+            return entity;
+        }
         
         private void Awake()
         {

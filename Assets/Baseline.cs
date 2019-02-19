@@ -60,7 +60,7 @@ namespace Brisk.Assets
 
             foreach (var entity in entities)
             {
-                var e = entityManager.CreateEntity(peer, assetManager, assetManager[entity.name]);
+                var e = NetEntity.Create(peer, assetManager, assetManager[entity.name]);
                 if (e == null) continue;
                 
                 e.transform.position = new Vector3(entity.x, entity.y, entity.z);

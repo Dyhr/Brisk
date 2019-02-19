@@ -25,6 +25,7 @@ namespace Brisk
         public Messages.Messages Messages { get; private set; }
         internal bool IsClient => peer is NetClient;
         internal bool IsServer => peer is NetServer;
+        internal int NextEntityId => ++nextEntityId;
 
         internal int NumberOfConnections => peer.Connections.Count;
         internal int AverageUpdateTime
@@ -50,7 +51,8 @@ namespace Brisk
         }
         
         internal readonly AssetManager assetManager = new AssetManager();
-        internal readonly EntityManager entityManager = new EntityManager();
+        internal readonly Dictionary<int, NetEntity> entities = new Dictionary<int, NetEntity>();
+        internal readonly List<NetEntity> ownedEntities = new List<NetEntity>();
 
         private readonly List<int> messageCount = new List<int>();
         private readonly List<int> memoryUsage = new List<int>();
@@ -58,7 +60,8 @@ namespace Brisk
         private readonly Stopwatch updateWatch = new Stopwatch();
         private Predicate<NetConnection> connectionReady;
         private NetPeer peer;
-        
+        private int nextEntityId;
+
 
         #region Lifecycle
         
@@ -220,7 +223,7 @@ namespace Brisk
                 
                 if (peer.Connections.Count == 0) continue;
                 
-                foreach (var entity in entityManager)
+                foreach (var entity in ownedEntities)
                 {
                     if (!entity.Dirty) continue;
 
