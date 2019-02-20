@@ -54,7 +54,7 @@ namespace Brisk.Assets
         }
 #endif
 
-        internal static void Load(Peer peer, AssetManager assetManager, EntityManager entityManager, TextAsset level)
+        internal static void Load(Peer peer, AssetManager assetManager, TextAsset level)
         {
             var entities = JsonUtility.FromJson<EntityArray>(level.text).entities;
 
