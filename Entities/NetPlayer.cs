@@ -6,22 +6,10 @@ namespace Brisk.Entities
 {
     public class NetPlayer : NetBehaviour
     {
-        [SerializeField] private bool green = false;
-        [SyncReliable]
-        public bool Green
+        [Action(false)]
+        public void Shoot()
         {
-            set
-            {
-                GetComponentInChildren<Renderer>().sharedMaterial.color = value ? Color.green : Color.white;
-                green = value;
-            }
-            get => green;
-        }
-
-        [Action]
-        public void ToggleGreen(bool value)
-        {
-            Green = value;
+            Peer.Instantiate(Peer.GetAssetId("CanisterPlasma"), transform.position, transform.rotation);
         }
     }
 }

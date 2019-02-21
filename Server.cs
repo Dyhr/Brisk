@@ -48,7 +48,7 @@ namespace Brisk
             if (!success) return;
             
             // Start the routines
-            StartCoroutine(server.UpdateEntities(config));
+            StartCoroutine(server.UpdateEntities());
             StartCoroutine(StatusReport());
             
             Debug.Log($"Server running on port {config.Port}");
@@ -108,24 +108,26 @@ namespace Brisk
 
         private void ServerOnData(ref NetMessage msg)
         {
-            RuntimePlatform platform;
             var connection = msg.Connection;
             switch (msg.op)
             {
                 case NetOp.SystemInfo:
-                    platform = (RuntimePlatform) msg.msg.ReadByte();
+                {
+                    var platform = (RuntimePlatform) msg.msg.ReadByte();
                     if (server.assetManager.Available(platform))
                         server.Messages.AssetsStart(connection, server.assetManager.Size(platform));
                     // TODO handle unknown platforms
                     server.Messages.StringsStart(connection, server.assetManager.StringsLength);
                     break;
+                }
                 case NetOp.StringsStart:
                     StartCoroutine(server.assetManager.SendStrings( 
                         msg.msg.SenderConnection.AverageRoundtripTime, 
                         (i, s) => server.Messages.StringsData(connection, i, s)));
                     break;
                 case NetOp.AssetsStart:
-                    platform = (RuntimePlatform) msg.msg.ReadByte();
+                {
+                    var platform = (RuntimePlatform) msg.msg.ReadByte();
                     if (server.assetManager.Available(platform))
                         StartCoroutine(server.assetManager.SendAssetBundle(
                             platform, 
@@ -133,7 +135,9 @@ namespace Brisk
                             msg.msg.SenderConnection.AverageRoundtripTime, 
                             (start, length, data) => server.Messages.AssetsData(connection, start, length, data)));
                     break;
+                }
                 case NetOp.Ready:
+                {
                     clients[msg.msg.SenderConnection].ready = true;
                     Debug.Log(msg.msg.SenderEndPoint + " is ready");
 
@@ -157,21 +161,43 @@ namespace Brisk
                         server.Messages.NewEntity(conn.Key, assetId, entityId, false);
                     }
                     break;
+                }
                 case NetOp.EntityUpdate:
+                {
                     var id = msg.msg.ReadInt32();
                     
-                    if(server.entities.TryGetValue(id, out var e)) {
-                        e.Deserialize(config.Serializer, msg.msg, true, true);
+                    if(server.entities.TryGetValue(id, out var entity)) {
+                        entity.Deserialize(config.Serializer, msg.msg, true, true);
                     
                         foreach (var conn in clients)
                         {
                             if (conn.Key == msg.msg.SenderConnection) continue;
                             if (!conn.Value.ready) continue;
                             
-                            server.Messages.EntityUpdate(conn.Key, config.Serializer, e);
+                            server.Messages.EntityUpdate(conn.Key, config.Serializer, entity);
                         }
                     }
                     break;
+                }
+                case NetOp.InstantiateEntity:
+                {
+                    var assetId = msg.msg.ReadInt32();
+                    var hasPos = msg.msg.ReadBoolean();
+                    var hasRot = msg.msg.ReadBoolean();
+                    var hasSca = msg.msg.ReadBoolean();
+                    var pos = hasPos
+                        ? (Vector3?) new Vector3(msg.msg.ReadFloat(),msg.msg.ReadFloat(),msg.msg.ReadFloat())  
+                        : null;
+                    var rot = hasRot 
+                        ? (Quaternion?) new Quaternion(msg.msg.ReadFloat(),msg.msg.ReadFloat(),msg.msg.ReadFloat(),msg.msg.ReadFloat())  
+                        : null;
+                    var sca = hasSca
+                        ? (Vector3?) new Vector3(msg.msg.ReadFloat(),msg.msg.ReadFloat(),msg.msg.ReadFloat())  
+                        : null;
+
+                    server.CreateEntity(assetId, pos, rot, sca);
+                    break;
+                }
                 case NetOp.ActionLocal:
                     HandleAction(msg.msg, true);
                     break;

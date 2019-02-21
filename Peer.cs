@@ -23,8 +23,6 @@ namespace Brisk
         internal event ConnectionHandler Disconnected;
 
         public Messages.Messages Messages { get; private set; }
-        internal bool IsClient => peer is NetClient;
-        internal bool IsServer => peer is NetServer;
         internal int NextEntityId => ++nextEntityId;
 
         internal int NumberOfConnections => peer.Connections.Count;
@@ -58,10 +56,50 @@ namespace Brisk
         private readonly List<int> memoryUsage = new List<int>();
         private readonly List<long> updateTimes = new List<long>();
         private readonly Stopwatch updateWatch = new Stopwatch();
+        private ServerConfig peerConfig;
         private Predicate<NetConnection> connectionReady;
         private NetPeer peer;
         private int nextEntityId;
+        
 
+        #region Entities
+        
+        public int GetAssetId(string name) => assetManager[name];
+
+        public void Instantiate(int assetId, Vector3? position = null, Quaternion? rotation = null, Vector3? scale = null)
+        {
+            switch (peer)
+            {
+                case NetClient _:
+                    Messages.InstantiateEntity(assetId, position, rotation, scale);
+                    break;
+                case NetServer _:
+                    CreateEntity(assetId, position, rotation, scale);
+                    break;
+                default:
+                    Debug.LogError($"Peer is an unknown type: {peer.GetType()}");
+                    break;
+            }
+        }
+
+        internal void CreateEntity(int assetId, Vector3? position, Quaternion? rotation, Vector3? scale)
+        {
+            var entity = NetEntity.Create(this, assetManager, assetId);
+
+            if (position.HasValue) entity.transform.position = position.Value;
+            if (rotation.HasValue) entity.transform.rotation = rotation.Value;
+            if (scale.HasValue) entity.transform.localScale = scale.Value;
+                    
+            foreach (var conn in peer.Connections)
+            {
+                if (!connectionReady(conn)) continue;
+
+                Messages.NewEntity(conn, assetId, entity.Id, false);
+                Messages.EntityUpdate(conn, peerConfig.Serializer, entity);
+            }
+        }
+        
+        #endregion
 
         #region Lifecycle
         
@@ -92,6 +130,8 @@ namespace Brisk
 
                 config = allSettings[0];
             }
+
+            peerConfig = config;
             
             // Prepare a config
             var netConfig = new NetPeerConfiguration(config.AppName);
@@ -210,14 +250,14 @@ namespace Brisk
             }
         }
 
-        internal IEnumerator UpdateEntities(ServerConfig config)
+        internal IEnumerator UpdateEntities()
         {
             while (true)
             {
                 if(updateTimes.Count == 0)
-                    yield return new WaitForSeconds(1/config.UpdateRate);
+                    yield return new WaitForSeconds(1/peerConfig.UpdateRate);
                 else
-                    yield return new WaitForSeconds(1/config.UpdateRate - updateTimes[updateTimes.Count-1] * 1000);
+                    yield return new WaitForSeconds(1/peerConfig.UpdateRate - updateTimes[updateTimes.Count-1] * 1000);
                 
                 updateWatch.Start();
                 
@@ -228,9 +268,9 @@ namespace Brisk
                     if (!entity.Dirty) continue;
 
                     var unreliableMsg = peer.CreateMessage();
-                    entity.Serialize(config.Serializer, unreliableMsg, true, true);
+                    entity.Serialize(peerConfig.Serializer, unreliableMsg, true, true);
                     var reliableMsg = peer.CreateMessage();
-                    entity.Serialize(config.Serializer, reliableMsg, true, true);
+                    entity.Serialize(peerConfig.Serializer, reliableMsg, true, true);
                 
                     foreach (var connection in peer.Connections) {
                         if (connection.Status != NetConnectionStatus.Connected) continue;

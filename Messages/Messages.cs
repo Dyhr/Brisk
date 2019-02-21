@@ -97,6 +97,50 @@ namespace Brisk.Messages
             });
         }
 
+        internal void InstantiateEntity(int assetId, Vector3? position = null, Quaternion? rotation = null, Vector3? scale = null)
+        {
+            switch (peer)
+            {
+                case NetClient _ when peer.ConnectionsCount > 0:
+                    SendMessage(peer.Connections[0], NetOp.InstantiateEntity, NetDeliveryMethod.ReliableUnordered, false, msg =>
+                    {
+                        msg.Write(assetId);
+                        msg.Write(position.HasValue);
+                        msg.Write(rotation.HasValue);
+                        msg.Write(scale.HasValue);
+                        if (position.HasValue)
+                        {
+                            msg.Write(position.Value.x);
+                            msg.Write(position.Value.y);
+                            msg.Write(position.Value.z);
+                        }
+                        if (rotation.HasValue)
+                        {
+                            msg.Write(rotation.Value.x);
+                            msg.Write(rotation.Value.y);
+                            msg.Write(rotation.Value.z);
+                            msg.Write(rotation.Value.w);
+                        }
+                        if (scale.HasValue)
+                        {
+                            msg.Write(scale.Value.x);
+                            msg.Write(scale.Value.y);
+                            msg.Write(scale.Value.z);
+                        }
+                    });
+                    break;
+                case NetClient _:
+                    Debug.LogWarning("Not connected");
+                    break;
+                case NetServer _:
+                    Debug.LogWarning("InstantiateEntity is called from the client");
+                    break;
+                default:
+                    Debug.LogError($"Peer is an unknown type: {peer.GetType()}");
+                    break;
+            }
+        }
+
         internal void NewEntity(NetConnection connection, int assetId, int entityId, bool owner)
         {
             SendMessage(connection, NetOp.NewEntity, NetDeliveryMethod.ReliableUnordered, true, msg =>
@@ -140,8 +184,7 @@ namespace Brisk.Messages
                     Debug.LogWarning("Not connected");
                     break;
                 case NetServer _:
-                {
-                    foreach (var connection in peer.Connections)
+                    /*foreach (var connection in peer.Connections)
                     {
                         SendMessage(connection, NetOp.ActionLocal, NetDeliveryMethod.ReliableUnordered, true, msg =>
                         {
@@ -150,9 +193,9 @@ namespace Brisk.Messages
                             msg.Write(behaviourId);
                             actionSet.Serialize(msg, args);
                         });
-                    }
+                    }*/
+                    Debug.LogWarning("Local actions are called from the client");
                     break;
-                }
                 default:
                     Debug.LogError($"Peer is an unknown type: {peer.GetType()}");
                     break;

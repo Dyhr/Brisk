@@ -60,7 +60,7 @@ namespace Brisk
         private void ClientConnected(NetConnection connection)
         {
             isConnecting = false;
-            updateRoutine = StartCoroutine(client.UpdateEntities(config));
+            updateRoutine = StartCoroutine(client.UpdateEntities());
             Debug.Log("Connected to server: " + connection.RemoteEndPoint);
         }
 
