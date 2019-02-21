@@ -111,6 +111,7 @@ namespace Brisk
                         client, client.assetManager, msg.msg.ReadInt32(), msg.msg.ReadInt32(), msg.msg.ReadBoolean());
                     break;
                 case NetOp.EntityUpdate:
+                {
                     var id = msg.msg.ReadInt32();
                     var entity = client.entities[id];
 
@@ -119,6 +120,18 @@ namespace Brisk
                     else
                         Debug.LogWarning("Entity not found: "+id);
                     break;
+                }
+                case NetOp.DestroyEntity:
+                {
+                    var entityId = msg.msg.ReadInt32();
+                    
+                    if(client.entities.TryGetValue(entityId, out var entity))
+                    {
+                        entity.netDestroyed = true;
+                        Destroy(entity.gameObject);
+                    }
+                    break;
+                }
                 default:
                     Debug.LogWarning("Unknown operation: "+msg.op);
                     break;

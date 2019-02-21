@@ -15,12 +15,10 @@ namespace Brisk.Messages
         AssetsData        = 0x11,
         StringsStart      = 0x12,
         StringsData       = 0x13,
-        ActionsStart      = 0x14,
-        ActionsData       = 0x15,
         
         EntityUpdate      = 0x80,
         NewEntity         = 0x81,
-        RemoveEntity      = 0x82,
+        DestroyEntity     = 0x82,
         ShowEntity        = 0x83,
         HideEntity        = 0x84,
         InstantiateEntity = 0x85,

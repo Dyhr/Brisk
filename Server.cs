@@ -198,6 +198,14 @@ namespace Brisk
                     server.CreateEntity(assetId, pos, rot, sca);
                     break;
                 }
+                case NetOp.DestroyEntity:
+                {
+                    var entityId = msg.msg.ReadInt32();
+
+                    if (server.entities.TryGetValue(entityId, out var entity))
+                        Destroy(entity.gameObject);
+                    break;
+                }
                 case NetOp.ActionLocal:
                     HandleAction(msg.msg, true);
                     break;

@@ -11,6 +11,7 @@ using Brisk.Messages;
 using Lidgren.Network;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
+using Object = UnityEngine.Object;
 
 namespace Brisk
 {
@@ -42,9 +43,9 @@ namespace Brisk
             get
             {
                 if (messageCount.Count == 0) return 0;
-                var avg = (int)messageCount.Average();
+                var sum = (int)messageCount.Sum();
                 messageCount.Clear();
-                return avg;
+                return sum;
             }
         }
         
@@ -75,6 +76,26 @@ namespace Brisk
                     break;
                 case NetServer _:
                     CreateEntity(assetId, position, rotation, scale);
+                    break;
+                default:
+                    Debug.LogError($"Peer is an unknown type: {peer.GetType()}");
+                    break;
+            }
+        }
+
+        internal void DestroyEntity(NetEntity entity)
+        {
+            switch (peer)
+            {
+                case NetClient _ when peer.ConnectionsCount > 0:
+                    Messages.DestroyEntity(peer.Connections[0], entity.Id);
+                    break;
+                case NetClient _:
+                    Debug.LogWarning("Not connected");
+                    break;
+                case NetServer _:
+                    foreach (var connection in peer.Connections)
+                        Messages.DestroyEntity(connection, entity.Id);
                     break;
                 default:
                     Debug.LogError($"Peer is an unknown type: {peer.GetType()}");

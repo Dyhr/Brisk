@@ -29,6 +29,7 @@ namespace Brisk.Entities
         }
 
         private NetBehaviour[] behaviours;
+        internal bool netDestroyed;
         private Vector3 prevPosition;
         private Vector3 prevRotation;
         
@@ -94,10 +95,22 @@ namespace Brisk.Entities
             }
         }
 
-        [Action]
+        private void OnApplicationQuit()
+        {
+            netDestroyed = true;
+        }
+
+        private void OnDestroy()
+        {
+            if (!netDestroyed)
+                Peer.DestroyEntity(this);
+            Peer.entities.Remove(Id);
+        }
+
+        [Action(false)]
         public void Destroy()
         {
-            Debug.Log($"Destroying {Id} : {name}");
+            netDestroyed = true;
             Destroy(gameObject);
         }
 

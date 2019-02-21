@@ -161,6 +161,14 @@ namespace Brisk.Messages
             Count++;
         }
 
+        internal void DestroyEntity(NetConnection connection, int entityId)
+        {
+            SendMessage(connection, NetOp.DestroyEntity, NetDeliveryMethod.ReliableUnordered, true, msg =>
+            {
+                msg.Write(entityId);
+            });
+        }
+
         internal void Ready(NetConnection connection)
         {
             SendMessage(connection, NetOp.Ready, NetDeliveryMethod.ReliableUnordered, false);
