@@ -9,10 +9,10 @@ namespace Brisk.Entities
 {
     public class NetEntity : NetBehaviour
     {
-        public Peer Peer { get; internal set; }
-        public int Id { get; internal set; }
-        public int AssetId { get; internal set; }
-        public bool Owner { get; internal set; }
+        public Peer Peer { get; private set; }
+        public int Id { get; private set; }
+        public int AssetId { get; private set; }
+        public bool Owner { get; private set; }
         public bool Dirty => prevPosition != transform.position || prevRotation != transform.eulerAngles;
 
         [SyncUnreliable]
@@ -27,8 +27,33 @@ namespace Brisk.Entities
             get => transform.eulerAngles;
             set => transform.eulerAngles = value;
         }
+        [SyncUnreliable]
+        public Vector3 Scale
+        {
+            get => transform.localScale;
+            set => transform.localScale = value;
+        }
+        //[SyncUnreliable]
+        public Vector3 Velocity
+        {
+            get => rigidbody != null ? rigidbody.velocity : Vector3.zero;
+            set
+            {
+                if (rigidbody != null) rigidbody.velocity = value;
+            }
+        }
+        //[SyncUnreliable]
+        public Vector3 AngularVelocity
+        {
+            get => rigidbody != null ? rigidbody.angularVelocity : Vector3.zero;
+            set
+            {
+                if (rigidbody != null) rigidbody.angularVelocity = value;
+            }
+        }
 
         private NetBehaviour[] behaviours;
+        private new Rigidbody rigidbody;
         internal bool netDestroyed;
         private Vector3 prevPosition;
         private Vector3 prevRotation;
@@ -67,6 +92,7 @@ namespace Brisk.Entities
         
         private void Awake()
         {
+            rigidbody = GetComponent<Rigidbody>();
             behaviours = GetComponentsInChildren<NetBehaviour>(true);
             foreach (var behaviour in behaviours) behaviour.Entity = this;
         }
@@ -127,6 +153,23 @@ namespace Brisk.Entities
                     return i;
             }
             return byte.MaxValue;
+        }
+
+        private void OnCollisionEnter(Collision other)
+        {
+            Debug.Log(this +" "+other);
+            if (Peer.IsServer) return;
+            var entity = other.gameObject.GetComponent<NetEntity>();
+            if (entity != null && entity.Owner)
+                Peer.syncEntities.Add(this);
+        }
+
+        private void OnTriggerStay(Collider other)
+        {
+            if (Peer.IsServer) return;
+            var entity = other.gameObject.GetComponent<NetEntity>();
+            if (entity != null && entity.Owner)
+                Peer.syncEntities.Add(this);
         }
     }
 }

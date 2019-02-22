@@ -204,7 +204,7 @@ namespace Brisk.Serialization
                 case "System.Boolean":
                     return "msg.ReadBoolean()";
                 case "UnityEngine.Vector3":
-                    return "new UnityEngine.Vector3(msg.ReadFloat(), msg.ReadFloat(), msg.ReadFloat())";
+                    return "new UnityEngine.Vector3(msg.ReadSingle(), msg.ReadSingle(), msg.ReadSingle())";
                 default:
                     Debug.LogError($"Type not supported for serialization: {type}");
                     return "(object)null";

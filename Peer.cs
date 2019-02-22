@@ -23,6 +23,7 @@ namespace Brisk
         internal event ConnectionHandler Connected;
         internal event ConnectionHandler Disconnected;
 
+        public bool IsServer { get; private set; }
         public Messages.Messages Messages { get; private set; }
         internal int NextEntityId => ++nextEntityId;
 
@@ -52,6 +53,7 @@ namespace Brisk
         internal readonly AssetManager assetManager = new AssetManager();
         internal readonly Dictionary<int, NetEntity> entities = new Dictionary<int, NetEntity>();
         internal readonly List<NetEntity> ownedEntities = new List<NetEntity>();
+        internal readonly List<NetEntity> syncEntities = new List<NetEntity>();
 
         private readonly List<int> messageCount = new List<int>();
         private readonly List<int> memoryUsage = new List<int>();
@@ -168,6 +170,7 @@ namespace Brisk
 
             // Start the server
             peer = (T)Activator.CreateInstance(typeof(T), netConfig);
+            IsServer = peer is NetServer;
             try
             {
                 peer.Start();
@@ -284,7 +287,7 @@ namespace Brisk
                 
                 if (peer.Connections.Count == 0) continue;
                 
-                foreach (var entity in ownedEntities)
+                foreach (var entity in ownedEntities.Concat(syncEntities).Distinct())
                 {
                     if (!entity.Dirty) continue;
 
