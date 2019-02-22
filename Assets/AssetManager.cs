@@ -9,6 +9,7 @@ namespace Brisk.Assets
     {
         public bool Ready => assets != null && stringsLength == stringsProgress;
         public int StringsLength => strings.Length;
+        public float AssetLoadingProgress { get; private set; }
 
         private readonly StringDictionary strings = new StringDictionary();
         private int stringsLength;
@@ -125,6 +126,7 @@ namespace Brisk.Assets
             for (var i = 0; i < length; i++)
                 assetsData[i + start] = data[i];
             assetsProgress += length;
+            AssetLoadingProgress = (float)assetsProgress / assetsData.Length;
 
             if (assetsProgress != assetsData.Length) return;
             assets = AssetBundle.LoadFromMemory(assetsData);

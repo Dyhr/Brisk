@@ -13,6 +13,8 @@ namespace Brisk
         [SerializeField] private string host = "localhost";
         [SerializeField] private float connectTimeout = 10f;
 
+        public float LoadingProgress => client.assetManager.AssetLoadingProgress;
+        
         private readonly Peer client = new Peer();
 
         private bool isConnecting;
@@ -83,14 +85,12 @@ namespace Brisk
                 case NetOp.SystemInfo:
                     client.Messages.SystemInfo(connection, Application.platform);
                     break;
-                
                 case NetOp.StringsStart:
                     client.assetManager.InitializeStringGet(msg.msg.ReadInt32());
                     client.Messages.StringsStart(connection);
                     break;
                 case NetOp.StringsData:
                     client.assetManager.StringGet(msg.msg.ReadInt32(), msg.msg.ReadString());
-                    
                     if (client.assetManager.Ready) client.Messages.Ready(connection);
                     break;
                 case NetOp.AssetsStart:
@@ -105,7 +105,6 @@ namespace Brisk
 
                     if (client.assetManager.Ready) client.Messages.Ready(connection);
                     break;
-                
                 case NetOp.NewEntity:
                     NetEntity.Create(
                         client, client.assetManager, msg.msg.ReadInt32(), msg.msg.ReadInt32(), msg.msg.ReadBoolean());

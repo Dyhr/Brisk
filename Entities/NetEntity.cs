@@ -9,7 +9,7 @@ namespace Brisk.Entities
 {
     public class NetEntity : NetBehaviour
     {
-        public Peer Peer { get; private set; }
+        public new Peer Peer { get; private set; }
         public int Id { get; private set; }
         public int AssetId { get; private set; }
         public bool Owner { get; private set; }
@@ -157,7 +157,6 @@ namespace Brisk.Entities
 
         private void OnCollisionEnter(Collision other)
         {
-            Debug.Log(this +" "+other);
             if (Peer.IsServer) return;
             var entity = other.gameObject.GetComponent<NetEntity>();
             if (entity != null && entity.Owner)
