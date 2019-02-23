@@ -7,6 +7,7 @@ using UnityEngine;
 
 namespace Brisk.Entities
 {
+    [DisallowMultipleComponent]
     public class NetEntity : NetBehaviour
     {
         public new Peer Peer { get; private set; }
