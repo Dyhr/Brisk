@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using Brisk.Config;
 using Brisk.Entities;
 using Brisk.Messages;
@@ -9,6 +10,8 @@ namespace Brisk
 {
     public class Client : MonoBehaviour
     {
+        public event Action ConnectionFailed;
+        
         [SerializeField] private ServerConfig config = null;
         [SerializeField] private string host = "localhost";
         [SerializeField] private float connectTimeout = 10f;
@@ -37,10 +40,12 @@ namespace Brisk
             if (!success) return;
 
             var resolved = client.Connect(host, config.Port);
-            if (!resolved)
+            if (!resolved) {
                 Debug.Log($"Could not resolve host: {host}:{config.Port}");
-            else
+                ConnectionFailed?.Invoke();
+            } else {
                 StartCoroutine(CheckNoConnection());
+            }
         }
 
         private IEnumerator CheckNoConnection()
@@ -48,8 +53,9 @@ namespace Brisk
             isConnecting = true;
             yield return new WaitForSeconds(connectTimeout);
 
-            if (isConnecting)
-                Debug.Log("Could not connect to server");
+            if (!isConnecting) yield break;
+            Debug.Log("Could not connect to server");
+            ConnectionFailed?.Invoke();
         }
 
         private void ClientDisconnected(NetConnection connection)

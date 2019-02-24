@@ -146,20 +146,8 @@ namespace Brisk
                         server.Messages.NewEntity(connection, entity.AssetId, entity.Id, false);
                         server.Messages.EntityUpdate(connection, config.Serializer, entity);
                     }
-
-                    var assetId = server.assetManager["PlayerController"];
-                    var entityId = msg.msg.SenderEndPoint.Port;
-
-                    NetEntity.Create(server, server.assetManager, assetId, entityId, false);
-                    server.Messages.NewEntity(connection, assetId, entityId, true);
-
-                    foreach (var conn in clients)
-                    {
-                        if (conn.Key == msg.msg.SenderConnection) continue;
-                        if (!conn.Value.ready) continue;
-
-                        server.Messages.NewEntity(conn.Key, assetId, entityId, false);
-                    }
+                    
+                    server.OnPlayerConnected(msg.msg.SenderEndPoint);
                     break;
                 }
                 case NetOp.EntityUpdate:

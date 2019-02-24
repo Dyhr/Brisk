@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
 using System.Net.Sockets;
 using Brisk.Assets;
 using Brisk.Config;
@@ -17,6 +18,10 @@ namespace Brisk
 {
     public sealed class Peer
     {
+        public delegate void PlayerHandler(IPEndPoint player);
+        public event PlayerHandler PlayerConnected;
+        public event PlayerHandler PlayerDisconnected;
+        
         internal delegate void DataHandler(ref NetMessage msg);
         internal event DataHandler Data;
         internal delegate void ConnectionHandler(NetConnection connection);
@@ -105,7 +110,7 @@ namespace Brisk
             }
         }
 
-        internal void CreateEntity(int assetId, Vector3? position, Quaternion? rotation, Vector3? scale)
+        internal void CreateEntity(int assetId, Vector3? position, Quaternion? rotation, Vector3? scale, IPEndPoint owner = null)
         {
             var entity = NetEntity.Create(this, assetManager, assetId);
 
@@ -117,7 +122,7 @@ namespace Brisk
             {
                 if (!connectionReady(conn)) continue;
 
-                Messages.NewEntity(conn, assetId, entity.Id, false);
+                Messages.NewEntity(conn, assetId, entity.Id, Equals(conn.RemoteEndPoint, owner));
                 Messages.EntityUpdate(conn, peerConfig.Serializer, entity);
             }
         }
@@ -314,5 +319,15 @@ namespace Brisk
         }
         
         #endregion
+
+        internal void OnPlayerConnected(IPEndPoint player)
+        {
+            PlayerConnected?.Invoke(player);
+        }
+
+        internal void OnPlayerDisconnected(IPEndPoint player)
+        {
+            PlayerDisconnected?.Invoke(player);
+        }
     }
 }
