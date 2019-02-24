@@ -162,7 +162,7 @@ namespace Brisk.Assets
         private static void CreatePrefab(GameObject gameObject)
         {
             var root = PrefabUtility.GetOutermostPrefabInstanceRoot(gameObject);
-            if (root != null)
+            if (root != null && !PrefabUtility.IsPartOfModelPrefab(root))
             {
                 Debug.LogError("Game object is already a prefab");
                 return;
@@ -173,24 +173,30 @@ namespace Brisk.Assets
                 .Where(nonPrefab => nonPrefab != gameObject && CreateArchetype(nonPrefab) == archetype)
                 .ToList();
             
+            if(root != null)
+                PrefabUtility.UnpackPrefabInstance(gameObject, PrefabUnpackMode.Completely, InteractionMode.UserAction);
             var prefab = PrefabUtility.SaveAsPrefabAssetAndConnect(
                 gameObject, 
                 Directory.Exists("Assets/Prefabs") ? $"Assets/Prefabs/{gameObject.name}.prefab" : $"Assets/{gameObject.name}.prefab", 
                 InteractionMode.UserAction, 
                 out var success);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
             if (success)
             {
                 foreach (var other in others)
                 {
-                    var otherInstance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
-                    otherInstance.transform.parent = other.transform.parent;
-                    otherInstance.transform.localPosition = other.transform.localPosition;
-                    otherInstance.transform.localRotation = other.transform.localRotation;
-                    otherInstance.transform.localScale = other.transform.localScale;
-                    otherInstance.transform.SetSiblingIndex(other.transform.GetSiblingIndex());
-                    otherInstance.name = other.name;
+                    prefab.transform.position = other.transform.position;
+                    prefab.transform.rotation = other.transform.rotation;
+                    prefab.transform.localScale = other.transform.localScale;
+                    prefab.name = other.name;
+                    
+                    var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
                     Object.DestroyImmediate(other);
                 }
+                
+                prefab.transform.localPosition = Vector3.zero;
+                prefab.name = gameObject.name;
             }
         }
 
@@ -335,7 +341,7 @@ namespace Brisk.Assets
                 
                 e.transform.position = new Vector3(entity.px, entity.py, entity.pz);
                 e.transform.eulerAngles = new Vector3(entity.rx, entity.ry, entity.rz);
-                e.transform.position = new Vector3(entity.sx, entity.sy, entity.sz);
+                e.transform.localScale = new Vector3(entity.sx, entity.sy, entity.sz);
             }
         }
     }

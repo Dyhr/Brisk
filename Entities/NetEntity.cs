@@ -165,14 +165,5 @@ namespace Brisk.Entities
             if (entity != null && entity.Owner)
                 Peer.syncEntities.Add(this);
         }
-
-        private void OnTriggerStay(Collider other)
-        {
-            if (Peer == null) return;
-            if (Peer.IsServer) return;
-            var entity = other.gameObject.GetComponent<NetEntity>();
-            if (entity != null && entity.Owner)
-                Peer.syncEntities.Add(this);
-        }
     }
 }
