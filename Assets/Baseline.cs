@@ -39,7 +39,7 @@ namespace Brisk.Assets
             // Get the data
             var gameObjects = Object.FindObjectsOfType<GameObject>();
             var prefabs = GetActualPrefabs(GetPrefabs(gameObjects)).ToArray();
-            var nonPrefabs = GetNonPrefabsRoot(gameObjects).ToArray();
+            var nonPrefabs = GetNonPrefabs(gameObjects).ToArray();
             var entities = GetEntities(prefabs.Where(g => g.Item2 != null && g.Item2.GetComponent<NetEntity>() != null)).ToArray();
             
             // Save the data
@@ -50,7 +50,7 @@ namespace Brisk.Assets
             // Inform about objects that didn't look right
             var brokenPrefabs = prefabs.Where(g => g.Item2 == null).ToArray();
             if(brokenPrefabs.Length > 0)
-                Debug.Log($"{brokenPrefabs.Length} game objects are missing prefabs{brokenPrefabs.Aggregate("", (s, g) => $"{s}\n - {g.Item1.name}")}");
+                Debug.Log($"{brokenPrefabs.Length} game objects have missing prefabs{brokenPrefabs.Aggregate("", (s, g) => $"{s}\n - {g.Item1.name}")}");
             
             if(nonPrefabs.Length > 0)
                 Debug.Log($"{nonPrefabs.Length} game objects are not prefabs{nonPrefabs.Aggregate("", (s, g) => $"{s}\n - {g.name}")}");
@@ -61,17 +61,30 @@ namespace Brisk.Assets
             
             var changedPrefabs = prefabs.Where(g => g.Item2 != null && Changed(g.Item1)).ToArray();
             if(changedPrefabs.Length > 0)
-                Debug.Log($"{changedPrefabs.Length} has changes that are not applied{changedPrefabs.Aggregate("", (s, g) => $"{s}\n - {g.Item1.name}")}");
+                Debug.Log($"{changedPrefabs.Length} game object has changes that are not applied{changedPrefabs.Aggregate("", (s, g) => $"{s}\n - {g.Item1.name}")}");
+            
+            var nonBundledPrefabs = prefabs.Select(g => g.Item2).Distinct().Where(HasBundle).ToArray();
+            if(nonBundledPrefabs.Length > 0)
+                Debug.Log($"{nonBundledPrefabs.Length} prefabs are not in any asset bundle{nonBundledPrefabs.Aggregate("", (s, g) => $"{s}\n - {g.name}")}");
+        }
+
+        private static bool HasBundle(GameObject gameObject)
+        {
+            return AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(gameObject))?.assetBundleName == "";
         }
 
         private static bool Changed(GameObject instance)
         {
-            var modifications = PrefabUtility.GetPropertyModifications(instance).Where(m => !ChangedPropertyBlackList.Contains(m.propertyPath)).ToArray();
+            if (instance == null) return false;
+            var mods = PrefabUtility.GetPropertyModifications(instance);
+            var modifications = mods != null 
+                ? mods.Where(m => m?.propertyPath != null && !ChangedPropertyBlackList.Contains(m.propertyPath))
+                : new PropertyModification[0];
             return PrefabUtility.GetAddedComponents(instance).Count > 0 ||
                    PrefabUtility.GetAddedGameObjects(instance).Count > 0 ||
                    PrefabUtility.GetRemovedComponents(instance).Count > 0 ||
                    PrefabUtility.GetObjectOverrides(instance).Count > 0 ||
-                   (modifications.Length > 0);
+                   modifications.Any();
         }
 
         private static string GetJson(Entity[] entities)
@@ -83,14 +96,16 @@ namespace Brisk.Assets
         {
             return gameObjects
                 .Select(PrefabUtility.GetOutermostPrefabInstanceRoot)
-                .Distinct()
-                .Where(g => g != null);
+                .Where(g => g != null)
+                .Where(g => !PrefabUtility.IsPartOfModelPrefab(g))
+                .Distinct();
         }
         
         private static IEnumerable<GameObject> GetNonPrefabsRoot(IEnumerable<GameObject> gameObjects)
         {
             return gameObjects
-                .Where(g => PrefabUtility.GetOutermostPrefabInstanceRoot(g) == null)
+                .Where(g => PrefabUtility.GetOutermostPrefabInstanceRoot(g) == null || 
+                            PrefabUtility.IsPartOfModelPrefab(g))
                 .Select(g => g.transform.root != null ? g.transform.root.gameObject : g)
                 .Distinct()
                 .Where(g => g != null);
@@ -98,7 +113,8 @@ namespace Brisk.Assets
         private static IEnumerable<GameObject> GetNonPrefabs(IEnumerable<GameObject> gameObjects)
         {
             return gameObjects
-                .Where(g => PrefabUtility.GetOutermostPrefabInstanceRoot(g) == null)
+                .Where(g => PrefabUtility.GetOutermostPrefabInstanceRoot(g) == null || 
+                            PrefabUtility.IsPartOfModelPrefab(g))
                 .Distinct()
                 .Where(g => g != null);
         }

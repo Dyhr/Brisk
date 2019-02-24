@@ -129,6 +129,7 @@ namespace Brisk.Entities
 
         private void OnDestroy()
         {
+            if (Peer == null) return;
             if (!netDestroyed)
                 Peer.DestroyEntity(this);
             Peer.entities.Remove(Id);
@@ -158,6 +159,7 @@ namespace Brisk.Entities
 
         private void OnCollisionEnter(Collision other)
         {
+            if (Peer == null) return;
             if (Peer.IsServer) return;
             var entity = other.gameObject.GetComponent<NetEntity>();
             if (entity != null && entity.Owner)
@@ -166,6 +168,7 @@ namespace Brisk.Entities
 
         private void OnTriggerStay(Collider other)
         {
+            if (Peer == null) return;
             if (Peer.IsServer) return;
             var entity = other.gameObject.GetComponent<NetEntity>();
             if (entity != null && entity.Owner)
