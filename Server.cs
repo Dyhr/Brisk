@@ -2,10 +2,12 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Net;
 using Brisk.Assets;
 using Brisk.Config;
 using Brisk.Entities;
 using Brisk.Messages;
+using Brisk.Web;
 using Lidgren.Network;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
@@ -19,6 +21,7 @@ namespace Brisk
 
         private readonly Peer server = new Peer();
         private readonly Dictionary<NetConnection, ConnectionInfo> clients = new Dictionary<NetConnection, ConnectionInfo>();
+        private WebServer webServer;
 
         private int nextUserId;
 
@@ -47,11 +50,22 @@ namespace Brisk
             var success = server.Start<NetServer>(ref config, true, ConnectionReady);
             if (!success) return;
             
+            // Start the web server
+            webServer = new WebServer(3550, HttpHandler);
+            webServer.Run();
+            Debug.Log($"Web server listening on port {webServer.Port}");
+            
             // Start the routines
             StartCoroutine(server.UpdateEntities());
             StartCoroutine(StatusReport());
             
             Debug.Log($"Server running on port {config.Port}");
+        }
+
+        private string HttpHandler(HttpListenerRequest arg)
+        {
+            Debug.Log(arg.Url);
+            return "Whatever";
         }
 
         private bool ConnectionReady(NetConnection connection)
@@ -61,6 +75,7 @@ namespace Brisk
 
         private void OnDestroy()
         {
+            webServer.Stop();
             server.Connected -= ServerOnConnected;
             server.Disconnected -= ServerOnDisconnected;
             server.Data -= ServerOnData;
