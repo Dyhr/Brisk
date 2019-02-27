@@ -320,6 +320,34 @@ namespace Brisk
         
         #endregion
 
+        #region Actions
+
+        internal void HandleAction(NetIncomingMessage msg, bool global = false)
+        {
+            var actionId    = msg.ReadInt32();
+            var entityId    = msg.ReadInt32();
+            var behaviourId = msg.ReadByte();
+
+            var entity = entities[entityId];
+            if (entity == null)
+            {
+                Debug.LogError($"Entity not found with ID: {entityId}");
+                return;
+            }
+
+            peerConfig.ActionSet.Call(entity, behaviourId, msg, actionId, out var args);
+
+            if (!global) return;
+            foreach (var connection in peer.Connections)
+            {
+                if (!connectionReady(connection)) continue;
+                Messages.ActionClient(connection, actionId, entityId, behaviourId, args);
+            }
+        }
+
+        #endregion
+        
+        
         internal void OnPlayerConnected(IPEndPoint player)
         {
             PlayerConnected?.Invoke(player);

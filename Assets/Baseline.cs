@@ -336,7 +336,15 @@ namespace Brisk.Assets
 
             foreach (var entity in entities)
             {
-                var e = NetEntity.Create(peer, assetManager, assetManager[entity.name]);
+                var assetId = assetManager[entity.name];
+
+                if (assetId == 0)
+                {
+                    Debug.LogError($"Asset not found with name: {entity.name}");
+                    continue;
+                }
+                
+                var e = NetEntity.Create(peer, assetManager, assetId);
                 if (e == null) continue;
                 
                 e.transform.position = new Vector3(entity.px, entity.py, entity.pz);

@@ -25,5 +25,6 @@ namespace Brisk.Messages
         
         ActionLocal       = 0xA0,
         ActionGlobal      = 0xA1,
+        Action            = 0xA2,
     }
 }

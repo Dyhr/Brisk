@@ -137,6 +137,9 @@ namespace Brisk
                     }
                     break;
                 }
+                case NetOp.Action:
+                    client.HandleAction(msg.msg);
+                    break;
                 default:
                     Debug.LogWarning("Unknown operation: "+msg.op);
                     break;

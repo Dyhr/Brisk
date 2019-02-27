@@ -23,7 +23,7 @@ namespace Brisk.Actions
                 .Where(t => t.IsClass && t.IsSubclassOf(typeof(NetBehaviour)));
 
 
-            var actions = new Dictionary<Type, List<Tuple<MethodInfo, int, bool>>>();
+            var actions = new Dictionary<Type, List<Tuple<MethodInfo, int, bool, bool>>>();
             var actionList = new List<string>();
             foreach (var type in types)
             {
@@ -31,8 +31,8 @@ namespace Brisk.Actions
                 {
                     var attribute = (Action)Attribute.GetCustomAttribute(method, typeof(Action));
                     if (attribute == null) continue;
-                    if (!actions.ContainsKey(type)) actions.Add(type, new List<Tuple<MethodInfo, int, bool>>());
-                    actions[type].Add(Tuple.Create(method, actionList.Count, attribute.Self));
+                    if (!actions.ContainsKey(type)) actions.Add(type, new List<Tuple<MethodInfo, int, bool, bool>>());
+                    actions[type].Add(Tuple.Create(method, actionList.Count, attribute.Self, attribute is GlobalAction));
 
                     actionList.Add($"{type.FullName}.{method.Name}");
                 }
@@ -71,10 +71,10 @@ namespace Brisk.Actions
                 config.ActionSet = scriptableObject;
         }
 
-        private static void AddExtensions(StringBuilder result, Dictionary<Type, List<Tuple<MethodInfo, int, bool>>> actions)
+        private static void AddExtensions(StringBuilder result, Dictionary<Type, List<Tuple<MethodInfo, int, bool, bool>>> actions)
         {
             foreach (var actionSet in actions)
-            foreach (var (method, index, self) in actionSet.Value)
+            foreach (var (method, index, self, global) in actionSet.Value)
             {
                 var inArgs = new StringBuilder();
                 var callArgs = new StringBuilder();
@@ -98,21 +98,23 @@ namespace Brisk.Actions
 
                     i++;
                 }
+
+                var scope = global ? "Global" : "Local";
                 
                 result.AppendLine($"        public static void Net_{method.Name}(this {actionSet.Key.FullName} bhr{inArgs}) {{");
                 if(self)result.AppendLine($"            bhr.{method.Name}({callArgs});");
-                result.AppendLine($"            bhr.Entity.Peer.Messages.ActionLocal({index}, bhr.Entity.Entity.Id, bhr.Entity.Entity.Behaviour(bhr){actionArgs});");
+                result.AppendLine($"            bhr.Entity.Peer.Messages.Action{scope}({index}, bhr.Entity.Entity.Id, bhr.Entity.Entity.Behaviour(bhr){actionArgs});");
                 result.AppendLine( "        }");
             }
         }
 
-        private static void AddActions(StringBuilder result, Dictionary<Type, List<Tuple<MethodInfo, int, bool>>> actions)
+        private static void AddActions(StringBuilder result, Dictionary<Type, List<Tuple<MethodInfo, int, bool, bool>>> actions)
         {
-            result.AppendLine( "        private readonly System.Collections.Generic.Dictionary<int, System.Action<Brisk.Entities.NetBehaviour, Lidgren.Network.NetIncomingMessage>> actions =");
-            result.AppendLine( "            new System.Collections.Generic.Dictionary<int, System.Action<Brisk.Entities.NetBehaviour, Lidgren.Network.NetIncomingMessage>> {");
+            result.AppendLine( "        private readonly System.Collections.Generic.Dictionary<int, System.Func<Brisk.Entities.NetBehaviour, Lidgren.Network.NetIncomingMessage, object[]>> actions =");
+            result.AppendLine( "            new System.Collections.Generic.Dictionary<int, System.Func<Brisk.Entities.NetBehaviour, Lidgren.Network.NetIncomingMessage, object[]>> {");
 
             foreach (var actionSet in actions)
-            foreach (var (method, index, self) in actionSet.Value)
+            foreach (var (method, index, self, global) in actionSet.Value)
             {
                 result.AppendLine($"                {{{index}, (bhr, msg) => {{");
                 AddParameters(result, actionSet.Key.FullName, method);
@@ -120,8 +122,9 @@ namespace Brisk.Actions
             }
             result.AppendLine( "        };");
             result.AppendLine( "");
-            result.AppendLine( "        public override void Call(Brisk.Entities.NetEntity entity, byte behaviourId, Lidgren.Network.NetIncomingMessage msg, int actionId) {");
-            result.AppendLine( "            if (actions.TryGetValue(actionId, out var action)) action(entity.Behaviour(behaviourId), msg);");
+            result.AppendLine( "        public override void Call(Brisk.Entities.NetEntity entity, byte behaviourId, Lidgren.Network.NetIncomingMessage msg, int actionId, out object[] args) {");
+            result.AppendLine( "            args = null;");
+            result.AppendLine( "            if (actions.TryGetValue(actionId, out var action)) args = action(entity.Behaviour(behaviourId), msg);");
             result.AppendLine(@"            else UnityEngine.Debug.LogError($""Action not found with ID: {actionId}"");");
             result.AppendLine( "        }");
         }
@@ -138,6 +141,7 @@ namespace Brisk.Actions
                 args.Append(i);
             }
             result.AppendLine($"                    (({fullName})bhr).{method.Name}({args});");
+            result.AppendLine($"                    return new object[]{{{args}}};");
         }
     }
 }

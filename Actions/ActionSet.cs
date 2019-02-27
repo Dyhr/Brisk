@@ -6,7 +6,8 @@ namespace Brisk.Actions
 {
     public abstract class ActionSet : ScriptableObject
     {
-        public abstract void Call(NetEntity entity, byte behaviourId, NetIncomingMessage msg, int actionId);
+        public abstract void Call(NetEntity entity, byte behaviourId, NetIncomingMessage msg, int actionId,
+            out object[] args);
 
         public void Serialize(NetOutgoingMessage msg, object[] args)
         {

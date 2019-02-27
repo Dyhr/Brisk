@@ -176,10 +176,20 @@ namespace Brisk.Messages
 
         public void ActionLocal(int actionId, int entityId, byte behaviourId, params object[] args)
         {
+            SendAction(actionId, entityId, behaviourId, NetOp.ActionLocal, args);
+        }
+
+        public void ActionGlobal(int actionId, int entityId, byte behaviourId, params object[] args)
+        {
+            SendAction(actionId, entityId, behaviourId, NetOp.ActionGlobal, args);
+        }
+
+        private void SendAction(int actionId, int entityId, byte behaviourId, NetOp op, object[] args)
+        {
             switch (peer)
             {
                 case NetClient _ when peer.ConnectionsCount > 0:
-                    SendMessage(peer.Connections[0], NetOp.ActionLocal, NetDeliveryMethod.ReliableUnordered, true, 
+                    SendMessage(peer.Connections[0], op, NetDeliveryMethod.ReliableUnordered, true,
                         msg =>
                         {
                             msg.Write(actionId);
@@ -192,22 +202,24 @@ namespace Brisk.Messages
                     Debug.LogWarning("Not connected");
                     break;
                 case NetServer _:
-                    /*foreach (var connection in peer.Connections)
-                    {
-                        SendMessage(connection, NetOp.ActionLocal, NetDeliveryMethod.ReliableUnordered, true, msg =>
-                        {
-                            msg.Write(actionId);
-                            msg.Write(entityId);
-                            msg.Write(behaviourId);
-                            actionSet.Serialize(msg, args);
-                        });
-                    }*/
-                    Debug.LogWarning("Local actions are called from the client");
+                    Debug.LogWarning("Local and global actions are called from the client");
                     break;
                 default:
                     Debug.LogError($"Peer is an unknown type: {peer.GetType()}");
                     break;
             }
+        }
+
+        public void ActionClient(NetConnection connection, int actionId, int entityId, byte behaviourId, params object[] args)
+        {
+            SendMessage(connection, NetOp.Action, NetDeliveryMethod.ReliableUnordered, true,
+                msg =>
+                {
+                    msg.Write(actionId);
+                    msg.Write(entityId);
+                    msg.Write(behaviourId);
+                    actionSet.Serialize(msg, args);
+                });
         }
     }
 }

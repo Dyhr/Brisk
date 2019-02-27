@@ -210,28 +210,15 @@ namespace Brisk
                     break;
                 }
                 case NetOp.ActionLocal:
-                    HandleAction(msg.msg, true);
+                    server.HandleAction(msg.msg, false);
                     break;
                 case NetOp.ActionGlobal:
-                    HandleAction(msg.msg, false);
+                    server.HandleAction(msg.msg, true);
                     break;
                 default:
                     Debug.LogWarning("Unknown operation: "+msg.op);
                     break;
             }
-        }
-
-        private void HandleAction(NetIncomingMessage msg, bool local)
-        {
-            var actionId    = msg.ReadInt32();
-            var entityId    = msg.ReadInt32();
-            var behaviourId = msg.ReadByte();
-
-            var entity = server.entities[entityId];
-            if (entity != null)
-                config.ActionSet.Call(entity, behaviourId, msg, actionId);
-            else
-                Debug.LogError($"Entity not found with ID: {entityId}");
         }
     }
 }
