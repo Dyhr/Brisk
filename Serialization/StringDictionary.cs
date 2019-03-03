@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Brisk.Assets
+namespace Brisk.Serialization
 {
     internal class StringDictionary
     {

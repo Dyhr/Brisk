@@ -6,13 +6,11 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using Brisk.Assets;
-using Brisk.Config;
 using Brisk.Entities;
 using Brisk.Messages;
 using Lidgren.Network;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
-using Object = UnityEngine.Object;
 
 namespace Brisk
 {
@@ -64,7 +62,7 @@ namespace Brisk
         private readonly List<int> memoryUsage = new List<int>();
         private readonly List<long> updateTimes = new List<long>();
         private readonly Stopwatch updateWatch = new Stopwatch();
-        private ServerConfig peerConfig;
+        private Config peerConfig;
         private Predicate<NetConnection> connectionReady;
         private NetPeer peer;
         private int nextEntityId;
@@ -131,15 +129,15 @@ namespace Brisk
 
         #region Lifecycle
         
-        internal bool Start<T>(ref ServerConfig config, bool isHost, Predicate<NetConnection> connectionPredicate) 
+        internal bool Start<T>(ref Config config, bool isHost, Predicate<NetConnection> connectionPredicate) 
             where T : NetPeer
         {
             connectionReady = connectionPredicate;
             
-            // Find some ServerConfig in Resources if it's not already assigned
+            // Find some Config in Resources if it's not already assigned
             if (config == null)
             {
-                var allSettings = Resources.FindObjectsOfTypeAll<ServerConfig>();
+                var allSettings = Resources.FindObjectsOfTypeAll<Config>();
                 if (allSettings.Length == 0)
                 {
                     Debug.LogError(
@@ -152,20 +150,21 @@ namespace Brisk
                 if (allSettings.Length > 1)
                 {
                     Debug.LogError(
-                        "More than one Server Config found in Resources. Please delete on or assign one to this Server component");
+                        "More than one Server Config found in Resources. Please delete or assign one.");
                     return false;
                 }
 
                 config = allSettings[0];
             }
-
+            
+            if(config != null) config.Load();
             peerConfig = config;
             
             // Prepare a config
-            var netConfig = new NetPeerConfiguration(config.AppName);
+            var netConfig = new NetPeerConfiguration(config.GetString("app_name"));
             if (isHost)
             {
-                netConfig.Port = config.Port;
+                netConfig.Port = config.GetInt("port_game");
                 netConfig.EnableMessageType(NetIncomingMessageType.DiscoveryRequest);
             }
             else
@@ -281,12 +280,14 @@ namespace Brisk
 
         internal IEnumerator UpdateEntities()
         {
+            var updateRate = peerConfig.GetFloat("update_rate");
+            
             while (true)
             {
                 if(updateTimes.Count == 0)
-                    yield return new WaitForSeconds(1/peerConfig.UpdateRate);
+                    yield return new WaitForSeconds(1/updateRate);
                 else
-                    yield return new WaitForSeconds(1/peerConfig.UpdateRate - updateTimes[updateTimes.Count-1] * 1000);
+                    yield return new WaitForSeconds(1/updateRate - updateTimes[updateTimes.Count-1] * 1000);
                 
                 updateWatch.Start();
                 

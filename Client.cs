@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections;
-using Brisk.Config;
 using Brisk.Entities;
 using Brisk.Messages;
 using Lidgren.Network;
@@ -12,7 +11,7 @@ namespace Brisk
     {
         public event Action ConnectionFailed;
         
-        [SerializeField] private ServerConfig config = null;
+        [SerializeField] private Config config = null;
         [SerializeField] private string host = "localhost";
         [SerializeField] private float connectTimeout = 10f;
 
@@ -39,9 +38,9 @@ namespace Brisk
 
             if (!success) return;
 
-            var resolved = client.Connect(host, config.Port);
+            var resolved = client.Connect(host, config.GetInt("port_game"));
             if (!resolved) {
-                Debug.Log($"Could not resolve host: {host}:{config.Port}");
+                Debug.Log($"Could not resolve host: {host}:{config.GetInt("port_game")}");
                 ConnectionFailed?.Invoke();
             } else {
                 StartCoroutine(CheckNoConnection());

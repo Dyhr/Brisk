@@ -1,11 +1,8 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Net;
 using Brisk.Assets;
-using Brisk.Config;
-using Brisk.Entities;
 using Brisk.Messages;
 using Brisk.Web;
 using Lidgren.Network;
@@ -16,7 +13,7 @@ namespace Brisk
 {
     public class Server : MonoBehaviour
     {
-        [SerializeField] private ServerConfig config = null;
+        [SerializeField] private Config config = null;
         [SerializeField] private TextAsset level = null;
 
         private readonly Peer server = new Peer();
@@ -51,7 +48,7 @@ namespace Brisk
             if (!success) return;
             
             // Start the web server
-            webServer = new WebServer(3550, HttpHandler);
+            webServer = new WebServer(config.GetInt("port_web"), HttpHandler);
             webServer.Run();
             Debug.Log($"Web server listening on port {webServer.Port}");
             
@@ -59,7 +56,7 @@ namespace Brisk
             StartCoroutine(server.UpdateEntities());
             StartCoroutine(StatusReport());
             
-            Debug.Log($"Server running on port {config.Port}");
+            Debug.Log($"Server running on port {config.GetInt("port_game")}");
         }
 
         private string HttpHandler(HttpListenerRequest arg)
@@ -107,7 +104,7 @@ namespace Brisk
         {
             while (true)
             {
-                yield return new WaitForSeconds(config.StatusReportTime);
+                yield return new WaitForSeconds(config.GetFloat("status_report_time"));
 
                 var updateTime = server.AverageUpdateTime;
                 
@@ -116,7 +113,7 @@ namespace Brisk
                     server.NumberOfConnections, 
                     GC.GetTotalMemory(true) / 1024, 
                     updateTime, 
-                    1-updateTime/(1000/config.UpdateRate),
+                    1-updateTime/(1000/config.GetFloat("update_rate")),
                     server.AverageMessagesSent);
             }
         }
