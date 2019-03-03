@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using Brisk.Actions;
 using Brisk.Serialization;
 using UnityEngine;
@@ -129,6 +130,28 @@ namespace Brisk
 
         private void LoadFromArgs()
         {
+            var args = Environment.GetCommandLineArgs();
+            if (args[0].Contains("Unity.exe")) return;
+
+            for (var i = 1; i < args.Length; i++)
+            {
+                var match = Regex.Match(args[i], @"--([\w\d]+)=([\w\d]+)");
+                if (!match.Success)
+                {
+                    Debug.LogWarning($"Malformed command line arg: {args[i]}");
+                    continue;
+                }
+
+                var varName = match.Groups[1].Value;
+                var varValue = match.Groups[2].Value;
+                
+                if(int.TryParse(varValue, out var r))
+                    ints[varName] = r;
+                else if(float.TryParse(varValue, out var f))
+                    floats[varName] = f;
+                else
+                    strings[varName] = varValue;
+            }
         }
 
         private void ParseNode(YamlMappingNode mapping, string parent = "")
