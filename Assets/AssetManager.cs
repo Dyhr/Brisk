@@ -1,23 +1,22 @@
 using System;
 using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Net;
 using Brisk.Serialization;
 using UnityEngine;
+using UnityEngine.Networking;
 
 namespace Brisk.Assets
 {
     internal class AssetManager
     {
-        public bool Ready => assets != null && stringsLength == stringsProgress;
-        public int StringsLength => strings.Length;
+        public bool Ready => assets != null && strings != null;
         public float AssetLoadingProgress { get; private set; }
 
-        private readonly StringDictionary strings = new StringDictionary();
-        private int stringsLength;
-        private int stringsProgress;
+        private StringDictionary strings;
         private AssetBundle assets;
         private byte[] assetsData;
-        private int assetsProgress;
 
         #region Platforms
 
@@ -38,106 +37,67 @@ namespace Brisk.Assets
                     return false;
             }
         }
-        
-        private byte[] BundleData(RuntimePlatform platform)
-        {
-            switch (platform)
-            {
-                case RuntimePlatform.OSXEditor:
-                case RuntimePlatform.OSXPlayer:
-                    return assetsData;
-                case RuntimePlatform.WindowsEditor:
-                case RuntimePlatform.WindowsPlayer:
-                    return assetsData;
-                case RuntimePlatform.LinuxEditor:
-                case RuntimePlatform.LinuxPlayer:
-                    return assetsData;
-                default:
-                    return null;
-            }
-        }
-        
-        public int Size(RuntimePlatform platform)
-        {
-            switch (platform)
-            {
-                case RuntimePlatform.OSXEditor:
-                case RuntimePlatform.OSXPlayer:
-                    return assetsData.Length;
-                case RuntimePlatform.WindowsEditor:
-                case RuntimePlatform.WindowsPlayer:
-                    return assetsData.Length;
-                case RuntimePlatform.LinuxEditor:
-                case RuntimePlatform.LinuxPlayer:
-                    return assetsData.Length;
-                default:
-                    Debug.LogErrorFormat("Platform not supported: {0}", platform);
-                    return 0;
-            }
-        }
 
         #endregion
         
         #region Transmission
-
-        public IEnumerator SendStrings(float interval, Action<int, string> onData)
-        {
-            for (var i = 0; i < strings.Length; i ++)
-            {
-                yield return new WaitForSeconds(interval);
-                onData.Invoke(i+1, strings[i+1]);
-            }
-        }
         
-        public IEnumerator SendAssetBundle(
-            RuntimePlatform platform, int maxPacketSize, float interval, Action<int, int, byte[]> onData)
+        public void DownloadAssetBundleHandler(HttpListenerRequest req, HttpListenerResponse res)
         {
-            var bundle = BundleData(platform);
-            if (onData == null) yield break;
+            res.OutputStream.Write(assetsData, 0, assetsData.Length);
+        }
+        public void DownloadStringsHandler(HttpListenerRequest req, HttpListenerResponse res)
+        {
+            var bytes = strings.Serialize();
+            res.OutputStream.Write(bytes, 0, bytes.Length);
+        }
 
-            var data = new byte[maxPacketSize];
-
-            for (var i = 0; i < bundle.Length; i += data.Length)
+        public IEnumerator DownloadAssetBundle(string url, Action<string> callback)
+        {
+            using (var req = UnityWebRequestAssetBundle.GetAssetBundle(url))
             {
-                yield return new WaitForSeconds(interval);
-                var size = Mathf.Min(data.Length, bundle.Length - i);
-                for (var j = 0; j < size; j++) data[j] = bundle[i + j];
-                onData.Invoke(i, size, data);
+                req.SendWebRequest();
+                while (!req.isDone)
+                {
+                    AssetLoadingProgress = req.downloadProgress;
+                    yield return null;
+                }
+                AssetLoadingProgress = 1f;
+
+                if (req.isNetworkError || req.isHttpError)
+                {
+                    callback?.Invoke(req.error);
+                }
+                else
+                {
+                    assets = DownloadHandlerAssetBundle.GetContent(req);
+                    callback.Invoke(null);
+                }
             }
         }
 
-        public void InitializeStringGet(int length)
+        public IEnumerator DownloadStrings(string url, Action<string> callback)
         {
-            stringsLength = length;
-        }
+            using (var req = UnityWebRequest.Get(url))
+            {
+                req.SendWebRequest();
+                yield return new WaitUntil(() => req.isDone);
 
-        public void StringGet(int i, string s)
-        {
-            strings.Register(i, s);
-            stringsProgress++;
-        }
-
-        public void InitializeDataGet(int length)
-        {
-            assetsData = new byte[length];
-        }
-
-        public void DataGet(int start, int length, byte[] data)
-        {
-            for (var i = 0; i < length; i++)
-                assetsData[i + start] = data[i];
-            assetsProgress += length;
-            AssetLoadingProgress = (float)assetsProgress / assetsData.Length;
-
-            if (assetsProgress != assetsData.Length) return;
-            assets = AssetBundle.LoadFromMemory(assetsData);
-
+                if (req.isNetworkError || req.isHttpError)
+                {
+                    callback?.Invoke(req.error);
+                }
+                else
+                {
+                    strings = StringDictionary.Deserialize(DownloadHandlerBuffer.GetContent(req));
+                    callback.Invoke(null);
+                }
+            }
         }
 
         public void LoadFromFile(string path)
         {
             assetsData = File.ReadAllBytes(path);
-            assetsProgress = assetsData.Length;
             assets = AssetBundle.LoadFromMemory(assetsData);
             InitializeStringDictionary();
         }
@@ -148,10 +108,10 @@ namespace Brisk.Assets
 
         private void InitializeStringDictionary()
         {
+            strings = new StringDictionary();
             // TODO check that the assets are the same for all platforms
             foreach (var asset in assets.LoadAllAssets())
                 strings.Register(asset.name);
-            stringsProgress = stringsLength = strings.Length;
         }
         
         public GameObject this[int id] => id != 0 ? assets.LoadAsset<GameObject>(strings[id]) : null;

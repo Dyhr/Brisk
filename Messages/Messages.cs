@@ -38,7 +38,11 @@ namespace Brisk.Messages
 
         internal void SystemInfo(NetConnection connection)
         {
-            SendMessage(connection, NetOp.SystemInfo, NetDeliveryMethod.ReliableUnordered, false);
+            SendMessage(connection, NetOp.SystemInfo, NetDeliveryMethod.ReliableUnordered, false, msg =>
+            {
+                msg.Write("/bundle");
+                msg.Write("/strings");
+            });
         }
 
         internal void SystemInfo(NetConnection connection, RuntimePlatform platform)
@@ -46,54 +50,6 @@ namespace Brisk.Messages
             SendMessage(connection, NetOp.SystemInfo, NetDeliveryMethod.ReliableUnordered, false, msg =>
             {
                 msg.Write((byte) platform);
-            });
-        }
-
-        internal void StringsStart(NetConnection connection, int size)
-        {
-            SendMessage(connection, NetOp.StringsStart, NetDeliveryMethod.ReliableUnordered, false, msg =>
-            {
-                msg.Write(size);
-            });
-        }
-
-        internal void StringsStart(NetConnection connection)
-        {
-            SendMessage(connection, NetOp.StringsStart, NetDeliveryMethod.ReliableUnordered, false);
-        }
-
-        internal void StringsData(NetConnection connection, int id, string str)
-        {
-            SendMessage(connection, NetOp.StringsData, NetDeliveryMethod.ReliableUnordered, false, msg =>
-            {
-                msg.Write(id);
-                msg.Write(str);
-            });
-        }
-
-        internal void AssetsStart(NetConnection connection, int size)
-        {
-            SendMessage(connection, NetOp.AssetsStart, NetDeliveryMethod.ReliableUnordered, false, msg =>
-            {
-                msg.Write(size);
-            });
-        }
-
-        internal void AssetsStart(NetConnection connection, RuntimePlatform platform)
-        {
-            SendMessage(connection, NetOp.AssetsStart, NetDeliveryMethod.ReliableUnordered, false, msg =>
-            {
-                msg.Write((byte) platform);
-            });
-        }
-
-        internal void AssetsData(NetConnection connection, int start, int length, byte[] data)
-        {
-            SendMessage(connection, NetOp.AssetsData, NetDeliveryMethod.ReliableUnordered, false, msg =>
-            {
-                msg.Write(start);
-                msg.Write(length);
-                msg.Write(data);
             });
         }
 

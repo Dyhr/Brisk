@@ -89,26 +89,18 @@ namespace Brisk
             {
                 case NetOp.SystemInfo:
                     client.Messages.SystemInfo(connection, Application.platform);
-                    break;
-                case NetOp.StringsStart:
-                    client.assetManager.InitializeStringGet(msg.msg.ReadInt32());
-                    client.Messages.StringsStart(connection);
-                    break;
-                case NetOp.StringsData:
-                    client.assetManager.StringGet(msg.msg.ReadInt32(), msg.msg.ReadString());
-                    if (client.assetManager.Ready) client.Messages.Ready(connection);
-                    break;
-                case NetOp.AssetsStart:
-                    client.Messages.AssetsStart(connection, Application.platform);
-                    client.assetManager.InitializeDataGet(msg.msg.ReadInt32());
-                    break;
-                case NetOp.AssetsData:
-                    var start = msg.msg.ReadInt32();
-                    var length = msg.msg.ReadInt32();
-                    var data = msg.msg.ReadBytes(length);
-                    client.assetManager.DataGet(start, length, data);
-
-                    if (client.assetManager.Ready) client.Messages.Ready(connection);
+                    StartCoroutine(client.assetManager.DownloadAssetBundle(
+                        $"http://{host}:{config.GetInt("port_web")}{msg.msg.ReadString()}", err =>
+                        {
+                            if (err != null) Debug.LogError(err);
+                            if (client.assetManager.Ready) client.Messages.Ready(connection);
+                        }));
+                    StartCoroutine(client.assetManager.DownloadStrings(
+                        $"http://{host}:{config.GetInt("port_web")}{msg.msg.ReadString()}", err =>
+                        {
+                            if (err != null) Debug.LogError(err);
+                            if (client.assetManager.Ready) client.Messages.Ready(connection);
+                        }));
                     break;
                 case NetOp.NewEntity:
                     NetEntity.Create(

@@ -48,7 +48,9 @@ namespace Brisk
             if (!success) return;
             
             // Start the web server
-            webServer = new WebServer(config.GetInt("port_web"), HttpHandler);
+            webServer = new WebServer(config.GetInt("port_web"));
+            webServer.AddPath("/bundle", server.assetManager.DownloadAssetBundleHandler);
+            webServer.AddPath("/strings", server.assetManager.DownloadStringsHandler);
             webServer.Run();
             Debug.Log($"Web server listening on port {webServer.Port}");
             
@@ -57,12 +59,6 @@ namespace Brisk
             StartCoroutine(StatusReport());
             
             Debug.Log($"Server running on port {config.GetInt("port_game")}");
-        }
-
-        private string HttpHandler(HttpListenerRequest arg)
-        {
-            Debug.Log(arg.Url);
-            return "Whatever";
         }
 
         private bool ConnectionReady(NetConnection connection)
@@ -126,26 +122,9 @@ namespace Brisk
                 case NetOp.SystemInfo:
                 {
                     var platform = (RuntimePlatform) msg.msg.ReadByte();
-                    if (server.assetManager.Available(platform))
-                        server.Messages.AssetsStart(connection, server.assetManager.Size(platform));
+                    //if (server.assetManager.Available(platform))
+                    //    server.Messages.AssetsStart(connection, server.assetManager.Size(platform));
                     // TODO handle unknown platforms
-                    server.Messages.StringsStart(connection, server.assetManager.StringsLength);
-                    break;
-                }
-                case NetOp.StringsStart:
-                    StartCoroutine(server.assetManager.SendStrings( 
-                        msg.msg.SenderConnection.AverageRoundtripTime, 
-                        (i, s) => server.Messages.StringsData(connection, i, s)));
-                    break;
-                case NetOp.AssetsStart:
-                {
-                    var platform = (RuntimePlatform) msg.msg.ReadByte();
-                    if (server.assetManager.Available(platform))
-                        StartCoroutine(server.assetManager.SendAssetBundle(
-                            platform, 
-                            msg.msg.SenderConnection.CurrentMTU - 100, 
-                            msg.msg.SenderConnection.AverageRoundtripTime, 
-                            (start, length, data) => server.Messages.AssetsData(connection, start, length, data)));
                     break;
                 }
                 case NetOp.Ready:

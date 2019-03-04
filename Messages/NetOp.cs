@@ -11,11 +11,6 @@ namespace Brisk.Messages
         SystemInfo        = 0x03,
         Ready             = 0x04,
         
-        AssetsStart       = 0x10,
-        AssetsData        = 0x11,
-        StringsStart      = 0x12,
-        StringsData       = 0x13,
-        
         EntityUpdate      = 0x80,
         NewEntity         = 0x81,
         DestroyEntity     = 0x82,
