@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -121,7 +122,8 @@ namespace Brisk
                 if (!connectionReady(conn)) continue;
 
                 Messages.NewEntity(conn, assetId, entity.Id, Equals(conn.RemoteEndPoint, owner));
-                Messages.EntityUpdate(conn, peerConfig.Serializer, entity);
+                Messages.EntityUpdate(conn, peerConfig.Serializer, entity, true);
+                Messages.EntityUpdate(conn, peerConfig.Serializer, entity, false);
             }
         }
         
@@ -293,21 +295,11 @@ namespace Brisk
                 
                 if (peer.Connections.Count == 0) continue;
                 
-                foreach (var entity in ownedEntities.Concat(syncEntities).Distinct())
-                {
-                    if (!entity.Dirty) continue;
-
-                    var unreliableMsg = peer.CreateMessage();
-                    entity.Serialize(peerConfig.Serializer, unreliableMsg, true, true);
-                    var reliableMsg = peer.CreateMessage();
-                    entity.Serialize(peerConfig.Serializer, reliableMsg, true, true);
+                foreach (var entity in syncEntities)
+                    SendEntity(entity, true);
                 
-                    foreach (var connection in peer.Connections) {
-                        if (connection.Status != NetConnectionStatus.Connected) continue;
-                        peer.SendMessage(unreliableMsg, connection, NetDeliveryMethod.UnreliableSequenced);
-                        peer.SendMessage(reliableMsg, connection, NetDeliveryMethod.ReliableSequenced);
-                    }
-                }
+                foreach (var entity in ownedEntities)
+                    SendEntity(entity, false);
 
                 peer.FlushSendQueue();
                 
@@ -318,7 +310,50 @@ namespace Brisk
                 Messages.ResetCount();
             }
         }
-        
+
+        private void SendEntity(NetEntity entity, bool force)
+        {
+            var unreliableMsg = peer.CreateMessage();
+            var reliableMsg = peer.CreateMessage();
+            
+            entity.SerializeUnreliable(peerConfig.Serializer, unreliableMsg);
+            entity.SerializeReliable(peerConfig.Serializer, reliableMsg);
+
+            var unreliableData = unreliableMsg.Data;
+            if(force || !CompareBytes(entity.unreliableBytes, unreliableData)) 
+            {
+                entity.unreliableBytes = new byte[unreliableData.Length];
+                unreliableData.CopyTo(entity.unreliableBytes, 0);
+                foreach (var connection in peer.Connections) {
+                    if (connection.Status != NetConnectionStatus.Connected) continue;
+                    peer.SendMessage(unreliableMsg, connection, NetDeliveryMethod.UnreliableSequenced);
+                }
+            }
+            
+            var reliableData = reliableMsg.Data;
+            if(force || !CompareBytes(entity.reliableBytes, reliableData)) 
+            {
+                entity.reliableBytes = new byte[reliableData.Length];
+                reliableData.CopyTo(entity.reliableBytes, 0);
+                foreach (var connection in peer.Connections) {
+                    if (connection.Status != NetConnectionStatus.Connected) continue;
+                    peer.SendMessage(reliableMsg, connection, NetDeliveryMethod.ReliableSequenced);
+                }
+            }
+        }
+
+        [SuppressMessage("ReSharper", "LoopCanBeConvertedToQuery")]
+        private static bool CompareBytes(byte[] arrA, byte[] arrB)
+        {
+            if (arrA == null || arrB == null) return false;
+            if (arrA.Length != arrB.Length) return false;
+            for(var i = 0; i < arrA.Length; i++)
+            {
+                if (arrA[i] != arrB[i]) return false;
+            }
+            return true;
+        }
+
         #endregion
 
         #region Actions

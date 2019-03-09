@@ -25,6 +25,9 @@ namespace Brisk
 
         private void Start()
         {
+            // Turn off audio
+            AudioListener.pause = true;
+            
             // Set up some logs and listeners
             Application.SetStackTraceLogType(LogType.Log, StackTraceLogType.None);
             Application.SetStackTraceLogType(LogType.Warning, StackTraceLogType.None);
@@ -52,13 +55,13 @@ namespace Brisk
             webServer.AddPath("/bundle", server.assetManager.DownloadAssetBundleHandler);
             webServer.AddPath("/strings", server.assetManager.DownloadStringsHandler);
             webServer.Run();
-            Debug.Log($"Web server listening on port {webServer.Port}");
             
             // Start the routines
             StartCoroutine(server.UpdateEntities());
             StartCoroutine(StatusReport());
             
-            Debug.Log($"Server running on port {config.GetInt("port_game")}");
+            Debug.Log($"Web server listening on port {config.GetInt("port_web")}");
+            Debug.Log($"Game Server running on port {config.GetInt("port_game")}");
         }
 
         private bool ConnectionReady(NetConnection connection)
@@ -135,7 +138,8 @@ namespace Brisk
                     foreach (var entity in server.entities.Values)
                     {
                         server.Messages.NewEntity(connection, entity.AssetId, entity.Id, false);
-                        server.Messages.EntityUpdate(connection, config.Serializer, entity);
+                        server.Messages.EntityUpdate(connection, config.Serializer, entity, true);
+                        server.Messages.EntityUpdate(connection, config.Serializer, entity, false);
                     }
                     
                     server.OnPlayerConnected(msg.msg.SenderEndPoint);
@@ -144,16 +148,20 @@ namespace Brisk
                 case NetOp.EntityUpdate:
                 {
                     var id = msg.msg.ReadInt32();
+                    var reliable = msg.msg.ReadBoolean();
                     
                     if(server.entities.TryGetValue(id, out var entity)) {
-                        entity.Deserialize(config.Serializer, msg.msg, true, true);
+                        if(reliable)
+                            entity.DeserializeReliable(config.Serializer, msg.msg);
+                        else
+                            entity.DeserializeUnreliable(config.Serializer, msg.msg);
                     
                         foreach (var conn in clients)
                         {
                             if (conn.Key == msg.msg.SenderConnection) continue;
                             if (!conn.Value.ready) continue;
                             
-                            server.Messages.EntityUpdate(conn.Key, config.Serializer, entity);
+                            server.Messages.EntityUpdate(conn.Key, config.Serializer, entity, reliable);
                         }
                     }
                     break;

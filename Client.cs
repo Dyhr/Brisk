@@ -24,6 +24,9 @@ namespace Brisk
         
         private void Awake()
         {
+            // TODO sleep physics until ready
+            //Physics.autoSimulation = false;
+            
             client.Connected += ClientConnected;
             client.Disconnected += ClientDisconnected;
             client.Data += ClientData;
@@ -109,12 +112,19 @@ namespace Brisk
                 case NetOp.EntityUpdate:
                 {
                     var id = msg.msg.ReadInt32();
-                    var entity = client.entities[id];
+                    var reliable = msg.msg.ReadBoolean();
 
-                    if (entity != null)
-                        entity.Deserialize(config.Serializer, msg.msg, true, true);
+                    if (client.entities.TryGetValue(id, out var entity))
+                    {
+                        if(reliable)
+                            entity.DeserializeReliable(config.Serializer, msg.msg);
+                        else
+                            entity.DeserializeUnreliable(config.Serializer, msg.msg);
+                    }
                     else
+                    {
                         Debug.LogWarning("Entity not found: "+id);
+                    }
                     break;
                 }
                 case NetOp.DestroyEntity:

@@ -107,13 +107,17 @@ namespace Brisk.Messages
             });
         }
 
-        internal void EntityUpdate(NetConnection connection, Serializer serializer, NetEntity entity)
+        internal void EntityUpdate(NetConnection connection, Serializer serializer, NetEntity entity, bool reliable)
         {
             if (ready != null && !ready(connection)) return;
             
             var msg = peer.CreateMessage();
-            entity.Serialize(serializer, msg, true, true);
-            connection.SendMessage(msg, NetDeliveryMethod.ReliableUnordered, 0);
+            if(reliable)
+                entity.SerializeReliable(serializer, msg);
+            else
+                entity.SerializeUnreliable(serializer, msg);
+            
+            connection.SendMessage(msg, NetDeliveryMethod.ReliableSequenced, 0);
             Count++;
         }
 

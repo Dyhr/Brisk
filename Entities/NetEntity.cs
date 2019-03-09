@@ -14,7 +14,6 @@ namespace Brisk.Entities
         public int Id { get; private set; }
         public int AssetId { get; private set; }
         public bool Owner { get; private set; }
-        public bool Dirty => prevPosition != transform.position || prevRotation != transform.eulerAngles;
 
         [SyncUnreliable]
         public Vector3 Position
@@ -52,12 +51,13 @@ namespace Brisk.Entities
                 if (rigidbody != null) rigidbody.angularVelocity = value;
             }
         }
+        
+        internal bool netDestroyed;
+        internal byte[] unreliableBytes;
+        internal byte[] reliableBytes;
 
         private NetBehaviour[] behaviours;
         private new Rigidbody rigidbody;
-        internal bool netDestroyed;
-        private Vector3 prevPosition;
-        private Vector3 prevRotation;
         
 
         internal static NetEntity Create(Peer peer, AssetManager assets, int assetId, int entityId = 0, bool mine = false)
@@ -98,28 +98,34 @@ namespace Brisk.Entities
             foreach (var behaviour in behaviours) behaviour.Entity = this;
         }
 
-        public void Serialize(Serializer serializer, NetOutgoingMessage msg, bool reliable, bool unreliable)
+        public void SerializeReliable(Serializer serializer, NetOutgoingMessage msg)
         {
-            prevPosition = transform.position;
-            prevRotation = transform.eulerAngles;
-            
             msg.Write((byte)NetOp.EntityUpdate);
             msg.Write(Id);
+            msg.Write(true);
 
             foreach (var behaviour in behaviours) 
-            {
-                if (reliable) serializer.SerializeReliable(behaviour, msg);
-                if (unreliable) serializer.SerializeUnreliable(behaviour, msg);
-            }
+                serializer.SerializeReliable(behaviour, msg);
+        }
+        public void SerializeUnreliable(Serializer serializer, NetOutgoingMessage msg)
+        {
+            msg.Write((byte)NetOp.EntityUpdate);
+            msg.Write(Id);
+            msg.Write(false);
+
+            foreach (var behaviour in behaviours) 
+                serializer.SerializeUnreliable(behaviour, msg);
         }
 
-        public void Deserialize(Serializer serializer, NetIncomingMessage msg, bool reliable, bool unreliable)
+        public void DeserializeReliable(Serializer serializer, NetIncomingMessage msg)
         {
             foreach (var behaviour in behaviours)
-            {
-                if (reliable) serializer.DeserializeReliable(behaviour, msg);
-                if (unreliable) serializer.DeserializeUnreliable(behaviour, msg);
-            }
+                serializer.DeserializeReliable(behaviour, msg);
+        }
+        public void DeserializeUnreliable(Serializer serializer, NetIncomingMessage msg)
+        {
+            foreach (var behaviour in behaviours)
+                serializer.DeserializeUnreliable(behaviour, msg);
         }
 
         private void OnApplicationQuit()

@@ -12,8 +12,6 @@ namespace Brisk.Web
     {
         public delegate void WebHandler(HttpListenerRequest req, HttpListenerResponse res);
         
-        public int Port { get; private set; }
-        
         private readonly HttpListener listener = new HttpListener();
         private readonly IDictionary<string, WebHandler> paths = new ConcurrentDictionary<string, WebHandler>();
  
@@ -26,7 +24,6 @@ namespace Brisk.Web
             }
  
             listener.Prefixes.Add($"http://*:{port}/");
-            Port = port;
             listener.Start();
         }
 
