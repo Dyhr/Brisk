@@ -14,11 +14,17 @@ namespace Brisk.Actions
 {
     public static class ActionGenerator
     {
+        private static string[] assemblyExceptions = new[]
+        {
+            "Unity", "Microsoft", "Lidgren", "System", "JetBrains", "mscorlib", "Mono", "nunit",
+            "Cinemachine", "com.unity", "YamlDotNet", "ExCSS.Unity"
+        };
+
         [MenuItem("Brisk/Generate Action Set", false, 4)]
         public static void GenerateClasses()
         {
             var types = AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(a => a.GetTypes())
+                .SelectMany(a => assemblyExceptions.Any(e => a.FullName.StartsWith(e)) ? new Type[0] : a.GetTypes())
                 .Where(t => t.IsClass && t.IsSubclassOf(typeof(NetBehaviour)));
 
 
