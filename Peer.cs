@@ -9,6 +9,7 @@ using System.Net.Sockets;
 using Brisk.Assets;
 using Brisk.Entities;
 using Brisk.Messages;
+using Brisk.Serialization;
 using Lidgren.Network;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
@@ -313,32 +314,30 @@ namespace Brisk
 
         private void SendEntity(NetEntity entity, bool force)
         {
-            var unreliableMsg = peer.CreateMessage();
-            var reliableMsg = peer.CreateMessage();
-            
-            entity.SerializeUnreliable(peerConfig.Serializer, unreliableMsg);
-            entity.SerializeReliable(peerConfig.Serializer, reliableMsg);
+            SendEntityUpdate(force, ref entity.unreliableBytes, entity.SerializeUnreliable,
+                NetDeliveryMethod.UnreliableSequenced);
+            SendEntityUpdate(force, ref entity.reliableBytes, entity.SerializeReliable,
+                NetDeliveryMethod.ReliableSequenced);
+        }
 
-            var unreliableData = unreliableMsg.Data;
-            if(force || !CompareBytes(entity.unreliableBytes, unreliableData)) 
-            {
-                entity.unreliableBytes = new byte[unreliableData.Length];
-                unreliableData.CopyTo(entity.unreliableBytes, 0);
-                foreach (var connection in peer.Connections) {
-                    if (connection.Status != NetConnectionStatus.Connected) continue;
-                    peer.SendMessage(unreliableMsg, connection, NetDeliveryMethod.UnreliableSequenced);
-                }
-            }
+        private void SendEntityUpdate(bool force, ref byte[] entityBytes, 
+            Action<Serializer, NetOutgoingMessage> serialize, NetDeliveryMethod deliveryMethod)
+        {
+            // TODO this is generating garbage
+            var msg = peer.CreateMessage();
+            msg.Data = new byte[0];
+            serialize(peerConfig.Serializer, msg);
+            msg.WritePadBits();
+
+            var data = msg.PeekDataBuffer();
+            if (!force && CompareBytes(entityBytes, data)) return;
             
-            var reliableData = reliableMsg.Data;
-            if(force || !CompareBytes(entity.reliableBytes, reliableData)) 
+            entityBytes = new byte[data.Length];
+            data.CopyTo(entityBytes, 0);
+            foreach (var connection in peer.Connections) 
             {
-                entity.reliableBytes = new byte[reliableData.Length];
-                reliableData.CopyTo(entity.reliableBytes, 0);
-                foreach (var connection in peer.Connections) {
-                    if (connection.Status != NetConnectionStatus.Connected) continue;
-                    peer.SendMessage(reliableMsg, connection, NetDeliveryMethod.ReliableSequenced);
-                }
+                if (connection.Status != NetConnectionStatus.Connected) continue;
+                peer.SendMessage(msg, connection, deliveryMethod);
             }
         }
 
@@ -348,9 +347,7 @@ namespace Brisk
             if (arrA == null || arrB == null) return false;
             if (arrA.Length != arrB.Length) return false;
             for(var i = 0; i < arrA.Length; i++)
-            {
                 if (arrA[i] != arrB[i]) return false;
-            }
             return true;
         }
 

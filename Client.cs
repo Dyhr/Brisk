@@ -4,6 +4,7 @@ using Brisk.Entities;
 using Brisk.Messages;
 using Lidgren.Network;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Brisk
 {
@@ -21,8 +22,8 @@ namespace Brisk
 
         private bool isConnecting;
         private Coroutine updateRoutine;
-        
-        private void Awake()
+
+        private IEnumerator Start()
         {
             // TODO sleep physics until ready
             //Physics.autoSimulation = false;
@@ -34,30 +35,25 @@ namespace Brisk
             if (string.IsNullOrWhiteSpace(host))
             {
                 Debug.LogError("No host server specified");
-                return;
+                yield break;
             }
             
             var success = client.Start<NetClient>(ref config, false, null);
 
-            if (!success) return;
+            if (!success) yield break;
 
             var resolved = client.Connect(host, config.GetInt("port_game"));
             if (!resolved) {
                 Debug.Log($"Could not resolve host: {host}:{config.GetInt("port_game")}");
                 ConnectionFailed?.Invoke();
             } else {
-                StartCoroutine(CheckNoConnection());
+                isConnecting = true;
+                yield return new WaitForSeconds(connectTimeout);
+
+                if (!isConnecting) yield break;
+                Debug.Log("Could not connect to server");
+                ConnectionFailed?.Invoke();
             }
-        }
-
-        private IEnumerator CheckNoConnection()
-        {
-            isConnecting = true;
-            yield return new WaitForSeconds(connectTimeout);
-
-            if (!isConnecting) yield break;
-            Debug.Log("Could not connect to server");
-            ConnectionFailed?.Invoke();
         }
 
         private void ClientDisconnected(NetConnection connection)
