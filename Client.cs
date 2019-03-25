@@ -24,8 +24,7 @@ namespace Brisk
 
         private IEnumerator Start()
         {
-            // TODO sleep physics until ready
-            //Physics.autoSimulation = false;
+            Time.timeScale = 0;
             
             client.Connected += ClientConnected;
             client.Disconnected += ClientDisconnected;
@@ -99,6 +98,9 @@ namespace Brisk
                             if (err != null) Debug.LogError(err);
                             if (client.assetManager.Ready) client.Messages.Ready(connection);
                         }));
+                    break;
+                case NetOp.Ready:
+                    Time.timeScale = 1;
                     break;
                 case NetOp.NewEntity:
                     NetEntity.Create(

@@ -140,6 +140,7 @@ namespace Brisk
                         server.Messages.EntityUpdate(connection, config.Serializer, entity, true);
                         server.Messages.EntityUpdate(connection, config.Serializer, entity, false);
                     }
+                    server.Messages.Ready(msg.msg.SenderConnection);
                     
                     server.OnPlayerConnected(msg.msg.SenderEndPoint);
                     break;

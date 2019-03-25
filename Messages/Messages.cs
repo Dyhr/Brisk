@@ -58,7 +58,7 @@ namespace Brisk.Messages
             switch (peer)
             {
                 case NetClient _ when peer.ConnectionsCount > 0:
-                    SendMessage(peer.Connections[0], NetOp.InstantiateEntity, NetDeliveryMethod.ReliableUnordered, false, msg =>
+                    SendMessage(peer.Connections[0], NetOp.InstantiateEntity, NetDeliveryMethod.ReliableOrdered, false, msg =>
                     {
                         msg.Write(assetId);
                         msg.Write(position.HasValue);
@@ -131,7 +131,7 @@ namespace Brisk.Messages
 
         internal void Ready(NetConnection connection)
         {
-            SendMessage(connection, NetOp.Ready, NetDeliveryMethod.ReliableUnordered, false);
+            SendMessage(connection, NetOp.Ready, NetDeliveryMethod.ReliableOrdered, false);
         }
 
         public void ActionLocal(int actionId, int entityId, byte behaviourId, params object[] args)
@@ -149,7 +149,7 @@ namespace Brisk.Messages
             switch (peer)
             {
                 case NetClient _ when peer.ConnectionsCount > 0:
-                    SendMessage(peer.Connections[0], op, NetDeliveryMethod.ReliableUnordered, true,
+                    SendMessage(peer.Connections[0], op, NetDeliveryMethod.ReliableOrdered, true,
                         msg =>
                         {
                             msg.Write(actionId);
@@ -172,7 +172,7 @@ namespace Brisk.Messages
 
         public void ActionClient(NetConnection connection, int actionId, int entityId, byte behaviourId, params object[] args)
         {
-            SendMessage(connection, NetOp.Action, NetDeliveryMethod.ReliableUnordered, true,
+            SendMessage(connection, NetOp.Action, NetDeliveryMethod.ReliableOrdered, true,
                 msg =>
                 {
                     msg.Write(actionId);
