@@ -99,7 +99,7 @@ namespace Brisk.Messages
 
         internal void NewEntity(NetConnection connection, int assetId, int entityId, bool owner)
         {
-            SendMessage(connection, NetOp.NewEntity, NetDeliveryMethod.ReliableUnordered, true, msg =>
+            SendMessage(connection, NetOp.NewEntity, NetDeliveryMethod.ReliableOrdered, true, msg =>
             {
                 msg.Write(assetId);
                 msg.Write(entityId);
@@ -117,7 +117,7 @@ namespace Brisk.Messages
             else
                 entity.SerializeUnreliable(serializer, msg);
             
-            connection.SendMessage(msg, NetDeliveryMethod.ReliableSequenced, 0);
+            connection.SendMessage(msg, NetDeliveryMethod.ReliableOrdered, 0);
             Count++;
         }
 

@@ -1,5 +1,3 @@
-using Lidgren.Network;
-
 namespace Brisk
 {
     public class ConnectionInfo

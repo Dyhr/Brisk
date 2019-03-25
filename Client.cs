@@ -4,7 +4,6 @@ using Brisk.Entities;
 using Brisk.Messages;
 using Lidgren.Network;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace Brisk
 {
