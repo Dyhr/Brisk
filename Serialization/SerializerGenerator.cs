@@ -59,17 +59,12 @@ namespace Brisk.Serialization
             
             foreach (var serializer in serializers)
             {
-                var indent = "                ";
-                var castLine = $"{indent}var obj = ({serializer.Key.FullName})bhr;";
+                var name = serializer.Key.Name.ToLower();
+                const string indent = "                ";
                 var reliableReadLines = new StringBuilder();
                 var unreliableReadLines = new StringBuilder();
                 var reliableWriteLines = new StringBuilder();
                 var unreliableWriteLines = new StringBuilder();
-                
-                reliableReadLines.AppendLine(castLine);
-                unreliableReadLines.AppendLine(castLine);
-                reliableWriteLines.AppendLine(castLine);
-                unreliableWriteLines.AppendLine(castLine);
                 
                 foreach (var (info, reliable) in serializer.Value)
                 {
@@ -100,28 +95,28 @@ namespace Brisk.Serialization
 
                     var rLines = reliable ? reliableReadLines : unreliableReadLines;
                     var wLines = reliable ? reliableWriteLines : unreliableWriteLines;
-                    wLines.AppendLine($"{indent}obj.{info.Name} = {ReadMessageData(type.FullName)};");
+                    wLines.AppendLine($"{indent}{name}.{info.Name} = {ReadMessageData(type.FullName)};");
                     switch (type.FullName)
                     {
                         case "System.Byte":
-                            rLines.AppendLine($"{indent}msg.Write(obj.{info.Name});");
+                            rLines.AppendLine($"{indent}msg.Write({name}.{info.Name});");
                             break;
                         case "System.Int16":
-                            rLines.AppendLine($"{indent}msg.Write(obj.{info.Name});");
+                            rLines.AppendLine($"{indent}msg.Write({name}.{info.Name});");
                             break;
                         case "System.Int32":
-                            rLines.AppendLine($"{indent}msg.Write(obj.{info.Name});");
+                            rLines.AppendLine($"{indent}msg.Write({name}.{info.Name});");
                             break;
                         case "System.Int64":
-                            rLines.AppendLine($"{indent}msg.Write(obj.{info.Name});");
+                            rLines.AppendLine($"{indent}msg.Write({name}.{info.Name});");
                             break;
                         case "System.Boolean":
-                            rLines.AppendLine($"{indent}msg.Write(obj.{info.Name});");
+                            rLines.AppendLine($"{indent}msg.Write({name}.{info.Name});");
                             break;
                         case "UnityEngine.Vector3":
-                            rLines.AppendLine($"{indent}msg.Write(obj.{info.Name}.x);");
-                            rLines.AppendLine($"{indent}msg.Write(obj.{info.Name}.y);");
-                            rLines.AppendLine($"{indent}msg.Write(obj.{info.Name}.z);");
+                            rLines.AppendLine($"{indent}msg.Write({name}.{info.Name}.x);");
+                            rLines.AppendLine($"{indent}msg.Write({name}.{info.Name}.y);");
+                            rLines.AppendLine($"{indent}msg.Write({name}.{info.Name}.z);");
                             break;
                         default:
                             Debug.LogError($"Type not supported for serialization: {type.FullName}");
@@ -129,14 +124,14 @@ namespace Brisk.Serialization
                     }
                 }
 
-                if(reliableReadLines.Length > castLine.Length+2) 
-                    reliableSerializers.Append($"            {{typeof({serializer.Key.FullName}), (bhr, msg) => {{\r\n{reliableReadLines}{indent}}}\r\n            }},");
-                if(unreliableReadLines.Length > castLine.Length+2) 
-                    unreliableSerializers.Append($"            {{typeof({serializer.Key.FullName}), (bhr, msg) => {{\r\n{unreliableReadLines}{indent}}}\r\n            }},");
-                if(reliableWriteLines.Length > castLine.Length+2) 
-                    reliableDeserializers.Append($"            {{typeof({serializer.Key.FullName}), (bhr, msg) => {{\r\n{reliableWriteLines}{indent}}}\r\n            }},");
-                if(unreliableWriteLines.Length > castLine.Length+2) 
-                    unreliableDeserializers.Append($"            {{typeof({serializer.Key.FullName}), (bhr, msg) => {{\r\n{unreliableWriteLines}{indent}}}\r\n            }},");
+                if(reliableReadLines.Length > 0) 
+                    reliableSerializers.Append($"            case {serializer.Key.FullName} {name}:\r\n{reliableReadLines}{indent}break;");
+                if(unreliableReadLines.Length > 0) 
+                    unreliableSerializers.Append($"            case {serializer.Key.FullName} {name}:\r\n{unreliableReadLines}{indent}break;");
+                if(reliableWriteLines.Length > 0) 
+                    reliableDeserializers.Append($"            case {serializer.Key.FullName} {name}:\r\n{reliableWriteLines}{indent}break;");
+                if(unreliableWriteLines.Length > 0) 
+                    unreliableDeserializers.Append($"            case {serializer.Key.FullName} {name}:\r\n{unreliableWriteLines}{indent}break;");
             }
 
             var result = new StringBuilder();
@@ -171,17 +166,13 @@ namespace Brisk.Serialization
 
         private static void AddSerialization(StringBuilder result, bool reliable, bool write, string serializers)
         {
-            var dictName = (write ? "deserializers" : "serializers") + (reliable ? "Reliable" : "Unreliable");
             var methodName = (write ? "Deserialize" : "Serialize") + (reliable ? "Reliable" : "Unreliable");
             var messageName = write ? "NetIncomingMessage" : "NetOutgoingMessage";
             
-            result.AppendLine($"        private static readonly System.Collections.Generic.Dictionary<System.Type, System.Action<Brisk.Entities.NetBehaviour,Lidgren.Network.{messageName}>> {dictName} = ");
-            result.AppendLine($"          new System.Collections.Generic.Dictionary<System.Type, System.Action<Brisk.Entities.NetBehaviour,Lidgren.Network.{messageName}>> {{");
-            result.AppendLine(serializers);
-            result.AppendLine( "        };");
-            
             result.AppendLine($"        public override void {methodName}<T>(T obj, Lidgren.Network.{messageName} msg) {{");
-            result.AppendLine($"            if ({dictName}.ContainsKey(obj.GetType())) {dictName}[obj.GetType()](obj, msg);");
+            result.AppendLine($"            switch (obj) {{");
+            result.AppendLine(serializers);
+            result.AppendLine($"            }}");
             result.AppendLine( "        }");
         }
         
